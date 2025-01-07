@@ -6,7 +6,7 @@ const LandingPage = () => {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-sm z-50 border-b border-gray-800">
         <div className="container mx-auto px-8 py-6 flex justify-between items-center">
-          <div className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">Slack AI</div>
+          <div className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">Chat Genius</div>
           <SignInButton mode="modal" />
         </div>
       </nav>

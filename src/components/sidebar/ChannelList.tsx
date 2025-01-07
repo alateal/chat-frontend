@@ -1,10 +1,16 @@
-const ChannelList = () => {
-  const channels = [
-    { id: 1, name: 'general' },
-    { id: 2, name: 'random' },
-    { id: 3, name: 'announcements' },
-  ];
+interface Channel {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
+interface ChannelListProps {
+  channels: Channel[];
+}
+
+const ChannelList = ({ channels }: ChannelListProps) => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-2">

@@ -1,10 +1,15 @@
-const MessageList = () => {
-  const messages = [
-    { id: 1, user: 'John Doe', content: 'Hello everyone!', timestamp: '12:00 PM' },
-    { id: 2, user: 'Jane Smith', content: 'Hi John!', timestamp: '12:01 PM' },
-    { id: 3, user: 'Bob Johnson', content: 'How are you all doing?', timestamp: '12:02 PM' },
-  ];
+interface Message {
+  id: string;
+  user: string;
+  content: string;
+  timestamp: string;
+}
 
+interface MessageListProps {
+  messages: Message[];
+}
+
+const MessageList = ({ messages }: MessageListProps) => {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
