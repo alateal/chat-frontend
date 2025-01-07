@@ -27,6 +27,7 @@ const MessagePage = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<string>();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,10 +59,46 @@ const MessagePage = () => {
     fetchData();
   }, [getToken]);
 
+  const handleCreateChannel = async (name: string) => {
+    try {
+      const token = await getToken();
+      const response = await fetch('http://localhost:3000/api/channels', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (response.ok) {
+        const newChannel = await response.json();
+        setChannels(prevChannels => [...prevChannels, newChannel]);
+      }
+    } catch (error) {
+      console.error('Error creating channel:', error);
+    }
+  };
+
+  const handleSelectChannel = (channelId: string) => {
+    setSelectedChannelId(channelId);
+  };
+
+  const currentChannel = channels.find(channel => channel.id === selectedChannelId);
+
   return (
     <div className="flex h-screen bg-base-200">
-      <Sidebar channels={channels} users={users} />
-      <ChatArea messages={messages} />
+      <Sidebar 
+        channels={channels} 
+        users={users} 
+        selectedChannelId={selectedChannelId}
+        onSelectChannel={handleSelectChannel}
+        onCreateChannel={handleCreateChannel}
+      />
+      <ChatArea 
+        messages={messages} 
+        currentChannel={currentChannel}
+      />
     </div>
   );
 };
