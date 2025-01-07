@@ -6,23 +6,20 @@ import ChatArea from './chat/ChatArea';
 interface Channel {
   id: string;
   name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  created_by: string;
 }
 
 interface Message {
   id: string;
-  user: string;
   content: string;
-  timestamp: string;
+  created_at: string;
+  created_by: string;
+  channel_id: string;
 }
 
 interface User {
   id: string;
-  name: string;
-  status: 'online' | 'offline';
-  avatar: string;
 }
 
 const MessagePage = () => {
