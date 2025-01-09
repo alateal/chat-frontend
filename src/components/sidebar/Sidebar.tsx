@@ -19,16 +19,22 @@ interface SidebarProps {
   channels: Channel[];
   users: User[];
   selectedChannelId?: string;
+  selectedUserId?: string;
+  currentUserId: string;
   onSelectChannel: (channelId: string) => void;
   onCreateChannel: (name: string) => void;
+  onSelectUser: (userId: string) => void;
 }
 
 const Sidebar = ({ 
   channels, 
   users, 
   selectedChannelId,
+  selectedUserId,
+  currentUserId,
   onSelectChannel,
-  onCreateChannel 
+  onCreateChannel,
+  onSelectUser 
 }: SidebarProps) => {
   return (
     <div className="w-64 bg-base-100 flex-none flex flex-col h-full">
@@ -43,7 +49,12 @@ const Sidebar = ({
           onSelectChannel={onSelectChannel}
           onCreateChannel={onCreateChannel}
         />
-        <DirectMessageList users={users} />
+        <DirectMessageList 
+          users={users}
+          selectedUserId={selectedUserId}
+          onSelectUser={onSelectUser}
+          currentUserId={currentUserId}
+        />
       </div>
 
       <div className="p-4 border-t border-base-content/10">

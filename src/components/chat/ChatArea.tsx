@@ -27,11 +27,25 @@ interface ChatAreaProps {
   messages: Message[];
   users: User[];
   currentChannel?: Channel;
+  currentConversation?: { userId: string };
   onSendMessage: (content: string) => void;
   onAddReaction: (messageId: string, emoji: string) => void;
+  onLoadMore: () => void;
+  isLoadingMessages: boolean;
+  hasMoreMessages: boolean;
 }
 
-const ChatArea = ({ messages, users, currentChannel, onSendMessage, onAddReaction }: ChatAreaProps) => {
+const ChatArea = ({ 
+  messages, 
+  users, 
+  currentChannel, 
+  currentConversation,
+  onSendMessage, 
+  onAddReaction,
+  onLoadMore,
+  isLoadingMessages,
+  hasMoreMessages
+}: ChatAreaProps) => {
   return (
     <div className="flex-1 flex flex-col">
       <div className="p-3 border-b border-base-content/10 bg-base-200/50">
@@ -39,7 +53,12 @@ const ChatArea = ({ messages, users, currentChannel, onSendMessage, onAddReactio
       </div>
       <div className="p-4 border-b border-base-content/10">
         <h2 className="text-lg font-semibold">
-          # {currentChannel?.name || 'Select a channel'}
+          {currentChannel ? 
+            `# ${currentChannel.name}` : 
+            currentConversation ? 
+              users.find(u => u.id === currentConversation.userId)?.username : 
+              'Select a conversation'
+          }
         </h2>
       </div>
       <MessageList 
@@ -47,6 +66,9 @@ const ChatArea = ({ messages, users, currentChannel, onSendMessage, onAddReactio
         users={users}
         channelId={currentChannel?.id}
         onAddReaction={onAddReaction}
+        onLoadMore={onLoadMore}
+        isLoadingMessages={isLoadingMessages}
+        hasMoreMessages={hasMoreMessages}
       />
       <MessageInput 
         onSendMessage={onSendMessage}

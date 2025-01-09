@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
@@ -27,12 +27,24 @@ interface MessageListProps {
   users: User[];
   channelId?: string;
   onAddReaction: (messageId: string, emoji: string) => void;
+  onLoadMore: () => void;
+  isLoadingMessages: boolean;
+  hasMoreMessages: boolean;
 }
 
 const FREQUENT_EMOJIS = ['👍🏻', '🙏🏼', '😄', '🎉']; // Default frequent emojis
 
-const MessageList = ({ messages = [], users = [], channelId, onAddReaction }: MessageListProps) => {
+const MessageList = ({ 
+  messages,
+  users,
+  channelId,
+  onAddReaction,
+  onLoadMore,
+  isLoadingMessages,
+  hasMoreMessages
+}: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
@@ -106,9 +118,35 @@ const MessageList = ({ messages = [], users = [], channelId, onAddReaction }: Me
     return reaction.users.length > 0 ? reaction.users.length : '';
   };
 
+  // Add scroll handler for infinite scroll
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current || isLoadingMessages || !hasMoreMessages) return;
+
+    const { scrollTop } = containerRef.current;
+    if (scrollTop === 0) {
+      onLoadMore();
+    }
+  }, [isLoadingMessages, hasMoreMessages, onLoadMore]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {channelMessages.map((message) => {
+    <div 
+      ref={containerRef} 
+      className="flex-1 overflow-y-auto p-4 space-y-4"
+    >
+      {isLoadingMessages && (
+        <div className="text-center py-2">
+          <span className="loading loading-dots loading-md"></span>
+        </div>
+      )}
+      {messages.map((message) => {
         const user = getUserById(message.created_by);
         return (
           <div key={message.id} className="chat chat-start group">

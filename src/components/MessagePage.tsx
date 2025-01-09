@@ -26,6 +26,10 @@ interface User {
   imageUrl: string;
 }
 
+interface DirectMessage extends Message {
+  conversation_id: string;
+}
+
 const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
   enabledTransports: ['ws', 'wss'],
@@ -33,12 +37,18 @@ const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
 });
 
 const MessagePage = () => {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>();
   const [error, setError] = useState<string | null>(null);
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>();
+  const [currentConversationId, setCurrentConversationId] = useState<string>();
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,6 +95,9 @@ const MessagePage = () => {
 
   useEffect(() => {
     const channelsChannel = pusher.subscribe('channels');
+    let messageChannel: any;
+
+    // Handle new channels
     channelsChannel.bind('new-channel', (newChannel: Channel) => {
       setChannels(prevChannels => {
         if (prevChannels.some(channel => channel.id === newChannel.id)) {
@@ -94,12 +107,12 @@ const MessagePage = () => {
       });
     });
 
-    let messageChannel: any;
+    // Handle channel messages
     if (selectedChannelId) {
       messageChannel = pusher.subscribe(`channel-${selectedChannelId}`);
       
       messageChannel.bind('new-message', (newMessage: Message) => {
-        console.log('Received new message:', newMessage);
+        console.log('Received channel message:', newMessage);
         setMessages(prevMessages => {
           if (prevMessages.some(message => message.id === newMessage.id)) {
             return prevMessages;
@@ -109,7 +122,6 @@ const MessagePage = () => {
       });
 
       messageChannel.bind('message-updated', (updatedMessage: Message) => {
-        console.log('Message updated:', updatedMessage);
         setMessages(prevMessages => 
           prevMessages.map(message => 
             message.id === updatedMessage.id ? updatedMessage : message
@@ -118,7 +130,34 @@ const MessagePage = () => {
       });
     }
 
+    // Handle direct messages
+    if (currentConversationId) {
+      messageChannel = pusher.subscribe(`conversation-${currentConversationId}`);
+      
+      messageChannel.bind('new-message', (newMessage: DirectMessage) => {
+        console.log('Received direct message:', newMessage);
+        setDirectMessages(prevMessages => {
+          if (prevMessages.some(msg => msg.id === newMessage.id)) {
+            return prevMessages;
+          }
+          return [...prevMessages, newMessage];
+        });
+      });
+
+      // Add handler for message updates (reactions)
+      messageChannel.bind('message-updated', (updatedMessage: DirectMessage) => {
+        console.log('Direct message updated:', updatedMessage);
+        setDirectMessages(prevMessages => 
+          prevMessages.map(message => 
+            message.id === updatedMessage.id ? updatedMessage : message
+          )
+        );
+      });
+    }
+
+    // Cleanup subscriptions
     return () => {
+      console.log('Cleaning up Pusher subscriptions');
       channelsChannel.unbind_all();
       channelsChannel.unsubscribe();
       if (messageChannel) {
@@ -126,7 +165,7 @@ const MessagePage = () => {
         messageChannel.unsubscribe();
       }
     };
-  }, [selectedChannelId]);
+  }, [selectedChannelId, currentConversationId]);
 
   const handleCreateChannel = async (name: string) => {
     try {
@@ -154,21 +193,64 @@ const MessagePage = () => {
 
   const currentChannel = channels.find(channel => channel.id === selectedChannelId);
 
-  const handleSendMessage = async (content: string) => {
-    if (!selectedChannelId) return;
+  const handleSelectUser = async (userId: string) => {
+    setSelectedUserId(userId);
+    setSelectedChannelId(undefined);
+    setCurrentPage(0);
+    setHasMoreMessages(false);
+    setDirectMessages([]);
 
     try {
       const token = await getToken();
-      const response = await fetch('http://localhost:3000/api/messages', {
+      const response = await fetch('http://localhost:3000/api/conversations', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          content,
-          channel_id: selectedChannelId
-        }),
+        body: JSON.stringify({ otherUserId: userId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get/create conversation');
+      
+      const { conversation } = await response.json();
+      setCurrentConversationId(conversation.id);
+
+      const messagesResponse = await fetch(
+        `http://localhost:3000/api/conversations/${conversation.id}/messages?page=0`, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
+      
+      const { messages, hasMore } = await messagesResponse.json();
+      setDirectMessages(messages);
+      setHasMoreMessages(hasMore);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleSendMessage = async (content: string) => {
+    if (!selectedChannelId && !currentConversationId) return;
+
+    try {
+      const token = await getToken();
+      const endpoint = selectedChannelId 
+        ? 'http://localhost:3000/api/messages'
+        : `http://localhost:3000/api/conversations/${currentConversationId}/messages`;
+
+      const body = selectedChannelId
+        ? { content, channel_id: selectedChannelId }
+        : { content };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -199,6 +281,32 @@ const MessagePage = () => {
     }
   };
 
+  const loadMoreMessages = async () => {
+    if (!currentConversationId || isLoadingMessages || !hasMoreMessages) return;
+
+    try {
+      setIsLoadingMessages(true);
+      const token = await getToken();
+      const nextPage = currentPage + 1;
+      
+      const response = await fetch(
+        `http://localhost:3000/api/conversations/${currentConversationId}/messages?page=${nextPage}`, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      
+      const { messages, hasMore } = await response.json();
+      setDirectMessages(prevMessages => [...messages, ...prevMessages]);
+      setHasMoreMessages(hasMore);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
   if (error) {
     return <div className="p-4 text-error">Error: {error}</div>;
   }
@@ -209,15 +317,22 @@ const MessagePage = () => {
         channels={channels} 
         users={users} 
         selectedChannelId={selectedChannelId}
+        selectedUserId={selectedUserId}
+        currentUserId={userId || ''}
         onSelectChannel={handleSelectChannel}
         onCreateChannel={handleCreateChannel}
+        onSelectUser={handleSelectUser}
       />
       <ChatArea 
-        messages={messages} 
+        messages={selectedChannelId ? messages : directMessages} 
         users={users}
         currentChannel={currentChannel}
+        currentConversation={selectedUserId ? { userId: selectedUserId } : undefined}
         onSendMessage={handleSendMessage}
         onAddReaction={handleAddReaction}
+        onLoadMore={loadMoreMessages}
+        isLoadingMessages={isLoadingMessages}
+        hasMoreMessages={hasMoreMessages}
       />
     </div>
   );
