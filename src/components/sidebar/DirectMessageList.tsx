@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import Pusher from 'pusher-js';
+import { useUserStatus } from '../../contexts/UserStatusContext';
 
-// Initialize Pusher
-const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
-  cluster: import.meta.env.VITE_PUSHER_CLUSTER,
-  enabledTransports: ['ws', 'wss'],
-});
 
 interface User {
   id: string;
@@ -32,73 +27,23 @@ const DirectMessageList = ({
   currentUserId 
 }: DirectMessageListProps) => {
   const { getToken } = useAuth();
-  const [userStatuses, setUserStatuses] = useState<UserStatus>({});
-  const sortedUsers = users.sort((a, b) => a.username.localeCompare(b.username));
+  const { userStatuses } = useUserStatus();
+  const [persistedUsers, setPersistedUsers] = useState<User[]>(users);
 
-  // Fetch initial user statuses
+  // Keep users persisted even after logging out
   useEffect(() => {
-    const fetchUserStatuses = async () => {
-      try {
-        const token = await getToken();
-        const response = await fetch('http://localhost:3000/api/users/status', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error('Failed to fetch user statuses');
-        
-        const { userStatuses } = await response.json();
-        setUserStatuses(userStatuses);
-      } catch (error) {
-        console.error('Error fetching user statuses:', error);
-      }
-    };
+    if (users.length > 0) {
+      setPersistedUsers(users);
+    }
+  }, [users]);
 
-    fetchUserStatuses();
-  }, [getToken]);
-
-  // Subscribe to status updates
-  useEffect(() => {
-    const presenceChannel = pusher.subscribe('presence');
-    
-    presenceChannel.bind('status-updated', (data: { userId: string; isOnline: boolean }) => {
-      setUserStatuses(prev => ({
-        ...prev,
-        [data.userId]: data.isOnline
-      }));
-    });
-
-    return () => {
-      presenceChannel.unbind_all();
-      presenceChannel.unsubscribe();
-    };
-  }, []);
-
-  // Update user status when component mounts/unmounts
-  useEffect(() => {
-    const updateStatus = async (isOnline: boolean) => {
-      try {
-        const token = await getToken();
-        await fetch('http://localhost:3000/api/users/status', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ isOnline })
-        });
-      } catch (error) {
-        console.error('Error updating status:', error);
-      }
-    };
-
-    // Set online when component mounts
-    updateStatus(true);
-
-    // Set offline when component unmounts
-    return () => {
-      updateStatus(false);
-    };
-  }, [getToken]);
+  const sortedUsers = persistedUsers.sort((a, b) => {
+    // Sort online users first, then by username
+    const aOnline = userStatuses[a.id] || false;
+    const bOnline = userStatuses[b.id] || false;
+    if (aOnline !== bOnline) return bOnline ? 1 : -1;
+    return a.username.localeCompare(b.username);
+  });
 
   return (
     <div className="p-4 border-t border-base-content/10">
@@ -123,6 +68,7 @@ const DirectMessageList = ({
                 </div>
                 <div 
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-base-100
+                    transition-colors duration-300
                     ${userStatuses[user.id] ? 'bg-success' : 'bg-base-300'}`}
                 />
               </div>
