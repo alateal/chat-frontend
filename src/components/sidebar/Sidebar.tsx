@@ -5,16 +5,14 @@ import DirectMessageList from './DirectMessageList';
 interface Channel {
   id: string;
   name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  created_by: string;
 }
 
 interface User {
   id: string;
-  name: string;
-  status: 'online' | 'offline';
-  avatar: string;
+  username: string;
+  imageUrl: string;
 }
 
 interface SidebarProps {
@@ -35,8 +33,9 @@ const Sidebar = ({
   return (
     <div className="w-64 bg-base-100 flex-none flex flex-col h-full">
       <div className="p-4 border-b border-base-content/10">
-        <h1 className="text-xl font-bold">Workspace Name</h1>
+        <h1 className="text-xl font-bold">Chat Genius</h1>
       </div>
+      
       <div className="flex-1 overflow-y-auto">
         <ChannelList 
           channels={channels} 
@@ -46,6 +45,7 @@ const Sidebar = ({
         />
         <DirectMessageList users={users} />
       </div>
+
       <div className="p-4 border-t border-base-content/10">
         <UserButton afterSignOutUrl="/" />
       </div>

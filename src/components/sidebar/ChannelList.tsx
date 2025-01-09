@@ -3,9 +3,8 @@ import { useState } from 'react';
 interface Channel {
   id: string;
   name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  created_by: string;
 }
 
 interface ChannelListProps {
@@ -58,30 +57,47 @@ const ChannelList = ({
 
       {/* Modal Dialog */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-base-100 p-6 rounded-lg w-80">
-            <h3 className="font-bold text-lg mb-4">Channel Name</h3>
-            <input
-              type="text"
-              value={newChannelName}
-              onChange={(e) => setNewChannelName(e.target.value)}
-              className="input input-bordered w-full mb-4"
-              placeholder="Enter channel name"
-            />
-            <div className="flex justify-between">
-              <button 
-                className="btn btn-primary"
-                onClick={handleSubmit}
-              >
-                Create
-              </button>
-              <button 
-                className="btn"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className="modal-backdrop fixed inset-0"
+            onClick={() => setIsModalOpen(false)}
+          />
+          <div className="bg-base-100 p-6 rounded-lg w-80 shadow-xl relative">
+            <button
+              className="btn btn-sm btn-circle absolute right-2 top-2"
+              onClick={() => setIsModalOpen(false)}
+            >
+              ✕
+            </button>
+            <h3 className="font-bold text-lg mb-4">Create New Channel</h3>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}>
+              <input
+                type="text"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                className="input input-bordered w-full mb-4"
+                placeholder="Enter channel name"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button 
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
