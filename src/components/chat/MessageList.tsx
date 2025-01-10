@@ -39,6 +39,7 @@ interface MessageListProps {
   users: User[];
   channelId?: string;
   userId: string;
+  getToken: () => Promise<string | null>;
   onAddReaction: (messageId: string, emoji: string) => void;
   onLoadMore: () => void;
   isLoadingMessages: boolean;
@@ -81,6 +82,7 @@ const MessageList = ({
   users,
   channelId,
   userId,
+  getToken,
   onAddReaction,
   onLoadMore,
   isLoadingMessages,
@@ -120,10 +122,31 @@ const MessageList = ({
 
   const handleReactionClick = (messageId: string, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    // Standard dimensions of emoji picker
+    const pickerWidth = 352;
+    const pickerHeight = 435;
+
+    // Calculate horizontal position
+    let left = rect.left;
+    if (left + pickerWidth > windowWidth) {
+      left = windowWidth - pickerWidth - 20;
+    }
+
+    // Calculate vertical position
+    let top = rect.bottom + window.scrollY + 5;
+    if (top + pickerHeight > windowHeight + window.scrollY) {
+      // Position above the button if not enough space below
+      top = rect.top + window.scrollY - pickerHeight - 5;
+    }
+
     setPickerPosition({
-      top: rect.bottom + window.scrollY,
-      left: rect.left + window.scrollX
+      top: Math.max(window.scrollY + 20, top),
+      left: Math.max(20, left)
     });
+    
     setCurrentMessageId(messageId);
     setShowEmojiPicker(true);
   };
@@ -184,6 +207,8 @@ const MessageList = ({
   const fetchThreadReplies = async (messageId: string) => {
     try {
       const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      
       const response = await fetch(`${API_URL}/api/messages/${messageId}/replies`, {
         headers: {
           'Authorization': `Bearer ${token}`,

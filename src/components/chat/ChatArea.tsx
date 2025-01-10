@@ -41,6 +41,7 @@ interface ChatAreaProps {
   onLoadMore: () => void;
   isLoadingMessages: boolean;
   hasMoreMessages: boolean;
+  getToken: () => Promise<string | null>;
 }
 
 const ChatArea = ({ 
@@ -53,7 +54,8 @@ const ChatArea = ({
   onAddReaction,
   onLoadMore,
   isLoadingMessages,
-  hasMoreMessages
+  hasMoreMessages,
+  getToken
 }: ChatAreaProps) => {
   const { userStatuses } = useUserStatus();
   const selectedUser = currentConversation 
@@ -97,6 +99,7 @@ const ChatArea = ({
         users={users}
         channelId={currentChannel?.id}
         userId={userId}
+        getToken={getToken}
         onAddReaction={onAddReaction}
         onLoadMore={onLoadMore}
         isLoadingMessages={isLoadingMessages}

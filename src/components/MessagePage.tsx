@@ -42,9 +42,23 @@ interface FileMetadata {
 
 const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
-  enabledTransports: ['ws', 'wss'],
-  logToConsole: true
+  enabledTransports: ['ws', 'wss']
 });
+
+// Add fetchWithRetry utility
+const fetchWithRetry = async (url: string, headers: HeadersInit, maxRetries = 3) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return response;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+  throw new Error('Failed to fetch after retries');
+};
 
 const MessagePage = () => {
   const { getToken, userId } = useAuth();
@@ -75,19 +89,17 @@ const MessagePage = () => {
         };
 
         const [channelsRes, messagesRes, usersRes] = await Promise.all([
-          fetch(`${API_URL}/api/channels`, { headers }),
-          fetch(`${API_URL}/api/messages`, { headers }),
-          fetch(`${API_URL}/api/users`, { headers })
+          fetchWithRetry(`${API_URL}/api/channels`, headers),
+          fetchWithRetry(`${API_URL}/api/messages`, headers),
+          fetchWithRetry(`${API_URL}/api/users`, headers)
         ]);
-        
-        if (!channelsRes.ok || !messagesRes.ok || !usersRes.ok) {
-          throw new Error('Failed to fetch data');
-        }
 
-        const channelsData = await channelsRes.json();
-        const messagesData = await messagesRes.json();
-        const usersData = await usersRes.json();
-        
+        const [channelsData, messagesData, usersData] = await Promise.all([
+          channelsRes.json(),
+          messagesRes.json(),
+          usersRes.json()
+        ]);
+
         setChannels(channelsData.channels || []);
         setMessages(messagesData.messages || []);
         setUsers(usersData.users.data || []);
@@ -97,7 +109,7 @@ const MessagePage = () => {
         }
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
       }
     };
 
@@ -344,6 +356,7 @@ const MessagePage = () => {
         currentChannel={currentChannel}
         currentConversation={selectedUserId ? { userId: selectedUserId } : undefined}
         userId={userId || ''}
+        getToken={getToken}
         onSendMessage={handleSendMessage}
         onAddReaction={handleAddReaction}
         onLoadMore={loadMoreMessages}
