@@ -1,4 +1,3 @@
-
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SearchBar from './SearchBar';
@@ -36,6 +35,7 @@ interface ChatAreaProps {
   users: User[];
   currentChannel?: Channel;
   currentConversation?: { userId: string };
+  userId: string;
   onSendMessage: (content: string) => void;
   onAddReaction: (messageId: string, emoji: string) => void;
   onLoadMore: () => void;
@@ -48,6 +48,7 @@ const ChatArea = ({
   users, 
   currentChannel, 
   currentConversation,
+  userId,
   onSendMessage, 
   onAddReaction,
   onLoadMore,
@@ -95,6 +96,7 @@ const ChatArea = ({
         messages={messages} 
         users={users}
         channelId={currentChannel?.id}
+        userId={userId}
         onAddReaction={onAddReaction}
         onLoadMore={onLoadMore}
         isLoadingMessages={isLoadingMessages}

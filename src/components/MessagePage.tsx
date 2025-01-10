@@ -343,6 +343,7 @@ const MessagePage = () => {
         users={users}
         currentChannel={currentChannel}
         currentConversation={selectedUserId ? { userId: selectedUserId } : undefined}
+        userId={userId || ''}
         onSendMessage={handleSendMessage}
         onAddReaction={handleAddReaction}
         onLoadMore={loadMoreMessages}
