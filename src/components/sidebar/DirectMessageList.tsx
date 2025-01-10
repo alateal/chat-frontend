@@ -51,12 +51,14 @@ const DirectMessageList = ({
       <ul className="menu menu-sm">
         {sortedUsers.map((user) => (
           <li key={user.id}>
-            <a 
-              className={`
-                hover:bg-base-100 flex items-center gap-2 
-                ${selectedUserId === user.id ? 'bg-base-200' : ''}
-              `}
+            <button
               onClick={() => onSelectUser(user.id)}
+              className={`
+                w-full px-4 py-2 text-left transition-colors duration-200
+                hover:bg-base-300 active:bg-base-300
+                ${selectedUserId === user.id ? 'bg-base-300' : 'hover:bg-base-300/70'}
+                rounded-lg flex items-center gap-3
+              `}
             >
               <div className="relative">
                 <div className="w-8 h-8 rounded-full overflow-hidden">
@@ -76,7 +78,7 @@ const DirectMessageList = ({
               {user.id === currentUserId && (
                 <span className="text-xs opacity-50 ml-auto">(you)</span>
               )}
-            </a>
+            </button>
           </li>
         ))}
       </ul>

@@ -45,12 +45,17 @@ const ChannelList = ({
       <ul className="menu menu-sm">
         {channels.map((channel) => (
           <li key={channel.id}>
-            <a 
-              className={`hover:bg-base-100 ${selectedChannelId === channel.id ? 'bg-base-200' : ''}`}
+            <button
               onClick={() => onSelectChannel(channel.id)}
+              className={`
+                w-full px-4 py-2 text-left transition-colors duration-200
+                hover:bg-base-300 active:bg-base-300
+                ${selectedChannelId === channel.id ? 'bg-base-300' : 'hover:bg-base-300/70'}
+                rounded-lg
+              `}
             >
-              <span className="text-base-content/70">#</span> {channel.name}
-            </a>
+              <span className="text-base-content"># {channel.name}</span>
+            </button>
           </li>
         ))}
       </ul>

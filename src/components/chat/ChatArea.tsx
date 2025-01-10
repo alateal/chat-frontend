@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
+
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import SearchBar from './SearchBar';
 
 import { useUserStatus } from '../../contexts/UserStatusContext';
-import { format, isToday, isYesterday } from 'date-fns';
 
 
 interface Channel {
@@ -30,11 +29,6 @@ interface Message {
   created_at: string;
   created_by: string;
   channel_id: string;
-}
-
-interface MessageGroup {
-  date: string;
-  messages: Message[];
 }
 
 interface ChatAreaProps {
@@ -64,32 +58,6 @@ const ChatArea = ({
   const selectedUser = currentConversation 
     ? users.find(u => u.id === currentConversation.userId)
     : null;
-
-  // Group messages by date in reverse chronological order
-  const messageGroups = useMemo(() => {
-    // Create a copy and reverse to show newest first
-    const sortedMessages = [...messages].reverse();
-    
-    return sortedMessages.reduce((groups: MessageGroup[], message) => {
-      const date = new Date(message.created_at);
-      let dateString = format(date, 'MMMM d, yyyy');
-      
-      if (isToday(date)) {
-        dateString = 'Today';
-      } else if (isYesterday(date)) {
-        dateString = 'Yesterday';
-      }
-
-      const lastGroup = groups[groups.length - 1];
-      if (lastGroup && lastGroup.date === dateString) {
-        lastGroup.messages.push(message);
-      } else {
-        groups.push({ date: dateString, messages: [message] });
-      }
-      
-      return groups;
-    }, []);
-  }, [messages]);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -123,57 +91,16 @@ const ChatArea = ({
           <h2 className="text-lg font-semibold">Select a conversation</h2>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto flex flex-col-reverse">
-        <div>
-          {messageGroups.map((group, index) => (
-            <div key={group.date + index}>
-              <div className="relative text-center my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-base-content/10"></div>
-                </div>
-                <div className="relative flex justify-center">
-                  <button className="btn btn-ghost btn-xs bg-base-100">
-                    {group.date}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {group.messages.map((message) => (
-                  <div 
-                    key={message.id}
-                    className="px-4 py-2 hover:bg-base-200/50"
-                  >
-                    <MessageList 
-                      messages={[message]}
-                      users={users}
-                      channelId={currentChannel?.id}
-                      onAddReaction={onAddReaction}
-                      userStatuses={userStatuses}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          
-          {hasMoreMessages && (
-            <button 
-              onClick={onLoadMore}
-              className="btn btn-ghost btn-sm w-full mt-4"
-            >
-              Load More
-            </button>
-          )}
-
-          {isLoadingMessages && (
-            <div className="flex justify-center p-4">
-              <span className="loading loading-spinner"></span>
-            </div>
-          )}
-        </div>
-      </div>
-
+      <MessageList 
+        messages={messages} 
+        users={users}
+        channelId={currentChannel?.id}
+        onAddReaction={onAddReaction}
+        onLoadMore={onLoadMore}
+        isLoadingMessages={isLoadingMessages}
+        hasMoreMessages={hasMoreMessages}
+        userStatuses={userStatuses}
+      />
       <MessageInput 
         onSendMessage={onSendMessage}
         channelName={currentChannel?.name}

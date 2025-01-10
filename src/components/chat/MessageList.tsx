@@ -8,6 +8,10 @@ interface User {
   imageUrl: string;
 }
 
+interface UserStatus {
+  [key: string]: boolean;
+}
+
 interface Reaction {
   emoji: string;
   users: string[];
@@ -20,6 +24,13 @@ interface Message {
   created_by: string;
   channel_id: string;
   reactions?: Reaction[];
+  file_attachments?: {
+    files: {
+      id: string;
+      file_name: string;
+      file_url: string;
+    }[];
+  };
 }
 
 interface MessageListProps {
@@ -30,9 +41,38 @@ interface MessageListProps {
   onLoadMore: () => void;
   isLoadingMessages: boolean;
   hasMoreMessages: boolean;
+  userStatuses: UserStatus;
 }
 
 const FREQUENT_EMOJIS = ['👍🏻', '🙏🏼', '😄', '🎉']; // Default frequent emojis
+
+const formatDate = (date: Date) => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  }
+  return date.toLocaleDateString('en-US', { 
+    month: 'long', 
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+const groupMessagesByDate = (messages: Message[]) => {
+  return messages.reduce((groups: { [key: string]: Message[] }, message) => {
+    const date = new Date(message.created_at).toDateString();
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(message);
+    return groups;
+  }, {});
+};
 
 const MessageList = ({ 
   messages,
@@ -41,7 +81,8 @@ const MessageList = ({
   onAddReaction,
   onLoadMore,
   isLoadingMessages,
-  hasMoreMessages
+  hasMoreMessages,
+  userStatuses
 }: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,12 +108,6 @@ const MessageList = ({
       hour12: true
     });
   };
-
-  const channelMessages = channelId 
-    ? messages
-        .filter(message => message.channel_id === channelId)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    : [];
 
   const getUserById = (userId: string) => {
     return users.find(user => user.id === userId);
@@ -139,101 +174,171 @@ const MessageList = ({
   return (
     <div 
       ref={containerRef} 
-      className="flex-1 overflow-y-auto p-4 space-y-4"
+      className="flex-1 overflow-y-auto p-4 space-y-4 relative"
     >
       {isLoadingMessages && (
         <div className="text-center py-2">
           <span className="loading loading-dots loading-md"></span>
         </div>
       )}
-      {messages.map((message) => {
-        const user = getUserById(message.created_by);
-        return (
-          <div key={message.id} className="chat chat-start group">
-            <div className="chat-image avatar">
-              <div className="w-10 rounded-full">
-                <img 
-                  src={user?.imageUrl || `https://ui-avatars.com/api/?name=${user?.username || 'User'}`} 
-                  alt={user?.username || 'User'} 
-                />
-              </div>
+      {Object.entries(groupMessagesByDate(messages)).map(([date, dateMessages]) => (
+        <div key={`date-group-${date}`} className="space-y-4">
+          <div className="sticky top-0 z-10 flex justify-center py-2">
+            <div className="bg-base-300 px-4 py-1 rounded-lg text-sm">
+              {formatDate(new Date(date))}
             </div>
-            <div className="relative">
-              <div className="chat-header">
-                {user?.username || 'Unknown User'}
-                <time className="text-xs opacity-50 ml-2">
-                  {formatTimestamp(message.created_at)}
-                </time>
+          </div>
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-base-content/10"></div>
+            <span className="flex-shrink-0 mx-4 text-xs text-base-content/50">
+              {formatDate(new Date(date))}
+            </span>
+            <div className="flex-grow border-t border-base-content/10"></div>
+          </div>
+          {dateMessages.map((message, index) => (
+            <div 
+              key={`${date}-message-${message.id}-${index}`} 
+              className="chat chat-start group"
+            >
+              <div className="chat-image avatar">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-10 h-10 overflow-hidden rounded-lg">
+                    <img 
+                      src={getUserById(message.created_by)?.imageUrl || `https://ui-avatars.com/api/?name=${getUserById(message.created_by)?.username || 'User'}`} 
+                      alt={getUserById(message.created_by)?.username || 'User'} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {getUserById(message.created_by) && (
+                    <div 
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-base-100
+                        transition-colors duration-300
+                        ${userStatuses[message.created_by] ? 'bg-success' : 'bg-base-300'}`}
+                    />
+                  )}
+                </div>
               </div>
-              <div className="chat-bubble">{message.content}</div>
-              
-              {/* Updated Reaction Tooltip */}
-              <div className="opacity-0 group-hover:opacity-100 absolute -right-40 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-base-300 rounded-lg p-2 shadow-lg transition-opacity duration-200">
-                {/* Quick Reaction Buttons */}
-                {FREQUENT_EMOJIS.map((emoji) => {
-                  const existingReaction = message.reactions?.find(r => r.emoji === emoji);
-                  const hasReacted = existingReaction && user?.id ? hasUserReacted(existingReaction, user.id) : false;
+              <div className="relative">
+                <div className="chat-header">
+                  {getUserById(message.created_by)?.username || 'Unknown User'}
+                  <time className="text-xs opacity-50 ml-2">
+                    {formatTimestamp(message.created_at)}
+                  </time>
+                </div>
+                <div className="chat-bubble bg-white/90 text-base-content shadow-sm">
+                  {message.content}
                   
-                  return (
-                    <button
-                      key={emoji}
-                      className={`hover:bg-base-100 p-1 rounded-full transition-colors duration-200
-                        ${hasReacted ? 'bg-base-100' : ''}`}
-                      onClick={() => handleQuickReaction(message.id, emoji)}
-                      title={hasReacted ? "Remove reaction" : "Add reaction"}
-                    >
-                      {emoji}
-                    </button>
-                  );
-                })}
+                  {/* File attachments inside chat bubble */}
+                  {message.file_attachments?.files.map((file) => (
+                    <div key={file.id} className="mt-3 first:mt-4">
+                      <a 
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-2.5 rounded-lg bg-base-100/50 hover:bg-base-100 
+                          transition-all duration-200 border border-base-200 hover:border-base-300
+                          hover:shadow-md group"
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/5 
+                          group-hover:bg-primary/10 transition-colors">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            strokeWidth={1.5} 
+                            stroke="currentColor" 
+                            className="w-4 h-4 text-primary"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium text-base-content">{file.file_name}</div>
+                          <div className="text-xs text-base-content/60">Click to download</div>
+                        </div>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          strokeWidth={1.5} 
+                          stroke="currentColor" 
+                          className="w-5 h-5 text-base-content/40 group-hover:text-base-content/70 transition-colors"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                      </a>
+                    </div>
+                  ))}
+                </div>
                 
-                {/* More Reactions Button */}
-                <button
-                  className="hover:bg-base-100 p-1 rounded-full transition-colors duration-200 ml-1"
-                  onClick={(e) => handleReactionClick(message.id, e)}
-                  title="More reactions"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Display existing reactions */}
-              {message.reactions && message.reactions.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {message.reactions.map((reaction, index) => {
-                    const hasReacted = user?.id ? hasUserReacted(reaction, user.id) : false;
+                {/* Updated Reaction Tooltip */}
+                <div className="opacity-0 group-hover:opacity-100 absolute -right-40 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-base-300 rounded-lg p-2 shadow-lg transition-opacity duration-200">
+                  {/* Quick Reaction Buttons */}
+                  {FREQUENT_EMOJIS.map((emoji) => {
+                    const existingReaction = message.reactions?.find(r => r.emoji === emoji);
+                    const hasReacted = existingReaction && getUserById(message.created_by)?.id ? hasUserReacted(existingReaction, getUserById(message.created_by)?.id) : false;
                     
                     return (
                       <button
-                        key={`${reaction.emoji}-${index}`}
-                        className={`
-                          btn btn-sm btn-ghost gap-1 px-2 h-8 min-h-0
-                          hover:bg-base-300 transition-colors duration-200
-                          ${hasReacted ? 'bg-base-300' : ''}
-                        `}
-                        onClick={() => handleQuickReaction(message.id, reaction.emoji)}
-                        title={reaction.users
-                          .map(userId => users.find(u => u.id === userId)?.username)
-                          .filter(Boolean)
-                          .join(', ')}
+                        key={emoji}
+                        className={`hover:bg-base-100 p-1 rounded-full transition-colors duration-200
+                          ${hasReacted ? 'bg-base-100' : ''}`}
+                        onClick={() => handleQuickReaction(message.id, emoji)}
+                        title={hasReacted ? "Remove reaction" : "Add reaction"}
                       >
-                        <span className="text-lg">{reaction.emoji}</span>
-                        {getReactionCount(reaction) && (
-                          <span className="text-xs font-normal opacity-70">
-                            {getReactionCount(reaction)}
-                          </span>
-                        )}
+                        {emoji}
                       </button>
                     );
                   })}
+                  
+                  {/* More Reactions Button */}
+                  <button
+                    className="hover:bg-base-100 p-1 rounded-full transition-colors duration-200 ml-1"
+                    onClick={(e) => handleReactionClick(message.id, e)}
+                    title="More reactions"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </button>
                 </div>
-              )}
+
+                {/* Display existing reactions */}
+                {message.reactions && message.reactions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {message.reactions.map((reaction, index) => {
+                      const hasReacted = getUserById(message.created_by)?.id ? hasUserReacted(reaction, getUserById(message.created_by)?.id) : false;
+                      
+                      return (
+                        <button
+                          key={`${reaction.emoji}-${index}`}
+                          className={`
+                            btn btn-sm btn-ghost gap-1 px-2 h-8 min-h-0
+                            hover:bg-base-300 transition-colors duration-200
+                            ${hasReacted ? 'bg-base-300' : ''}
+                          `}
+                          onClick={() => handleQuickReaction(message.id, reaction.emoji)}
+                          title={reaction.users
+                            .map(userId => users.find(u => u.id === userId)?.username)
+                            .filter(Boolean)
+                            .join(', ')}
+                        >
+                          <span className="text-lg">{reaction.emoji}</span>
+                          {getReactionCount(reaction) && (
+                            <span className="text-xs font-normal opacity-70">
+                              {getReactionCount(reaction)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      ))}
       <div ref={messagesEndRef} />
 
       {/* Emoji Picker Modal */}

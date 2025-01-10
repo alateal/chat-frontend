@@ -4,6 +4,8 @@ import Sidebar from './sidebar/Sidebar';
 import ChatArea from './chat/ChatArea';
 import Pusher from 'pusher-js';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 interface Channel {
   id: string;
   name: string;
@@ -30,6 +32,14 @@ interface DirectMessage extends Message {
   conversation_id: string;
 }
 
+interface FileMetadata {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  file_url: string;
+}
+
 const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
   enabledTransports: ['ws', 'wss'],
@@ -49,6 +59,7 @@ const MessagePage = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const selectedConversation = selectedUserId ? { userId: selectedUserId } : undefined;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,30 +108,20 @@ const MessagePage = () => {
     const channelsChannel = pusher.subscribe('channels');
     let messageChannel: any;
 
-    // Handle new channels
-    channelsChannel.bind('new-channel', (newChannel: Channel) => {
-      setChannels(prevChannels => {
-        if (prevChannels.some(channel => channel.id === newChannel.id)) {
-          return prevChannels;
-        }
-        return [...prevChannels, newChannel];
-      });
-    });
-
     // Handle channel messages
     if (selectedChannelId) {
       messageChannel = pusher.subscribe(`channel-${selectedChannelId}`);
       
       messageChannel.bind('new-message', (newMessage: Message) => {
-        console.log('Received channel message:', newMessage);
         setMessages(prevMessages => {
-          if (prevMessages.some(message => message.id === newMessage.id)) {
+          if (prevMessages.some(msg => msg.id === newMessage.id)) {
             return prevMessages;
           }
           return [...prevMessages, newMessage];
         });
       });
 
+      // Add back reaction updates for channel messages
       messageChannel.bind('message-updated', (updatedMessage: Message) => {
         setMessages(prevMessages => 
           prevMessages.map(message => 
@@ -135,18 +136,21 @@ const MessagePage = () => {
       messageChannel = pusher.subscribe(`conversation-${currentConversationId}`);
       
       messageChannel.bind('new-message', (newMessage: DirectMessage) => {
-        console.log('Received direct message:', newMessage);
         setDirectMessages(prevMessages => {
-          if (prevMessages.some(msg => msg.id === newMessage.id)) {
-            return prevMessages;
+          const isDuplicate = prevMessages.some(msg => msg.id === newMessage.id);
+          if (isDuplicate) return prevMessages;
+          
+          if (newMessage.conversation_id === currentConversationId) {
+            return [...prevMessages, newMessage].sort((a, b) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
           }
-          return [...prevMessages, newMessage];
+          return prevMessages;
         });
       });
 
-      // Add handler for message updates (reactions)
+      // Add back reaction updates for direct messages
       messageChannel.bind('message-updated', (updatedMessage: DirectMessage) => {
-        console.log('Direct message updated:', updatedMessage);
         setDirectMessages(prevMessages => 
           prevMessages.map(message => 
             message.id === updatedMessage.id ? updatedMessage : message
@@ -155,9 +159,7 @@ const MessagePage = () => {
       });
     }
 
-    // Cleanup subscriptions
     return () => {
-      console.log('Cleaning up Pusher subscriptions');
       channelsChannel.unbind_all();
       channelsChannel.unsubscribe();
       if (messageChannel) {
@@ -202,7 +204,7 @@ const MessagePage = () => {
 
     try {
       const token = await getToken();
-      const response = await fetch('http://localhost:3000/api/conversations', {
+      const response = await fetch(`${API_URL}/api/conversations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,13 +213,16 @@ const MessagePage = () => {
         body: JSON.stringify({ otherUserId: userId }),
       });
 
-      if (!response.ok) throw new Error('Failed to get/create conversation');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get/create conversation');
+      }
       
       const { conversation } = await response.json();
       setCurrentConversationId(conversation.id);
 
       const messagesResponse = await fetch(
-        `http://localhost:3000/api/conversations/${conversation.id}/messages?page=0`, 
+        `${API_URL}/api/conversations/${conversation.id}/messages?page=0`, 
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
@@ -228,21 +233,26 @@ const MessagePage = () => {
       setHasMoreMessages(hasMore);
     } catch (error) {
       console.error('Error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load conversation');
     }
   };
 
-  const handleSendMessage = async (content: string) => {
-    if (!selectedChannelId && !currentConversationId) return;
-
+  const handleSendMessage = async (content: string, files?: FileMetadata[]) => {
     try {
+      if (!selectedChannelId && !currentConversationId) {
+        throw new Error('No channel or conversation selected');
+      }
+
       const token = await getToken();
       const endpoint = selectedChannelId 
-        ? 'http://localhost:3000/api/messages'
-        : `http://localhost:3000/api/conversations/${currentConversationId}/messages`;
+        ? `${API_URL}/api/messages`
+        : `${API_URL}/api/conversations/${currentConversationId}/messages`;
 
-      const body = selectedChannelId
-        ? { content, channel_id: selectedChannelId }
-        : { content };
+      const body = {
+        content,
+        ...(selectedChannelId && { channel_id: selectedChannelId }),
+        ...(files?.length && { files })
+      };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -254,10 +264,15 @@ const MessagePage = () => {
       });
 
       if (!response.ok) {
-        console.error('Error sending message:', response.statusText);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
       }
+
+      // No need to update state here - Pusher will handle it
+      await response.json();
     } catch (error) {
       console.error('Error sending message:', error);
+      throw error;
     }
   };
 
