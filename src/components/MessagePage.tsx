@@ -4,7 +4,7 @@ import Sidebar from './sidebar/Sidebar';
 import ChatArea from './chat/ChatArea';
 import Pusher from 'pusher-js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface Channel {
   id: string;
@@ -75,9 +75,9 @@ const MessagePage = () => {
         };
 
         const [channelsRes, messagesRes, usersRes] = await Promise.all([
-          fetch('http://localhost:3000/api/channels', { headers }),
-          fetch('http://localhost:3000/api/messages', { headers }),
-          fetch('http://localhost:3000/api/users', { headers })
+          fetch(`${API_URL}/api/channels`, { headers }),
+          fetch(`${API_URL}/api/messages`, { headers }),
+          fetch(`${API_URL}/api/users`, { headers })
         ]);
         
         if (!channelsRes.ok || !messagesRes.ok || !usersRes.ok) {
@@ -172,7 +172,7 @@ const MessagePage = () => {
   const handleCreateChannel = async (name: string) => {
     try {
       const token = await getToken();
-      const response = await fetch('http://localhost:3000/api/channels', {
+      const response = await fetch(`${API_URL}/api/channels`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -279,7 +279,7 @@ const MessagePage = () => {
   const handleAddReaction = async (messageId: string, emoji: string) => {
     try {
       const token = await getToken();
-      const response = await fetch(`http://localhost:3000/api/messages/${messageId}/reactions`, {
+      const response = await fetch(`${API_URL}/api/messages/${messageId}/reactions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -305,7 +305,7 @@ const MessagePage = () => {
       const nextPage = currentPage + 1;
       
       const response = await fetch(
-        `http://localhost:3000/api/conversations/${currentConversationId}/messages?page=${nextPage}`, 
+        `${API_URL}/api/conversations/${currentConversationId}/messages?page=${nextPage}`, 
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
