@@ -89,6 +89,8 @@ const MessageList = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<Message | null>(null);
+  const [threadReplies, setThreadReplies] = useState<Message[]>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -171,6 +173,58 @@ const MessageList = ({
     }
   }, [handleScroll]);
 
+  const handleOpenThread = async (message: Message) => {
+    setSelectedThread(message);
+    await fetchThreadReplies(message.id);
+  };
+
+  const fetchThreadReplies = async (messageId: string) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/api/messages/${messageId}/replies`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch replies');
+      
+      const { replies } = await response.json();
+      setThreadReplies(replies);
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+    }
+  };
+
+  const handleSendReply = async (content: string, files?: FileMetadata[]) => {
+    if (!selectedThread) return;
+    
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/api/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content,
+          files,
+          parent_message_id: selectedThread.id,
+          channel_id: selectedThread.channel_id,
+          conversation_id: selectedThread.conversation_id,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to send reply');
+      
+      const reply = await response.json();
+      setThreadReplies(prev => [...prev, reply]);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+    }
+  };
+
   return (
     <div 
       ref={containerRef} 
@@ -198,7 +252,7 @@ const MessageList = ({
           {dateMessages.map((message, index) => (
             <div 
               key={`${date}-message-${message.id}-${index}`} 
-              className="chat chat-start group"
+              className="chat chat-start group relative flex items-start pr-20"
             >
               <div className="chat-image avatar">
                 <div className="relative flex items-center justify-center">
@@ -218,7 +272,7 @@ const MessageList = ({
                   )}
                 </div>
               </div>
-              <div className="relative">
+              <div className="relative flex-1">
                 <div className="chat-header">
                   {getUserById(message.created_by)?.username || 'Unknown User'}
                   <time className="text-xs opacity-50 ml-2">
@@ -269,35 +323,50 @@ const MessageList = ({
                       </a>
                     </div>
                   ))}
+                  
+                  {/* Thread Reply Button */}
+                  <button
+                    onClick={() => handleOpenThread(message)}
+                    className="opacity-0 group-hover:opacity-100 absolute -right-24 top-0 p-2 rounded-lg hover:bg-base-300 transition-all duration-200"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
                 
-                {/* Updated Reaction Tooltip */}
-                <div className="opacity-0 group-hover:opacity-100 absolute -right-40 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-base-300 rounded-lg p-2 shadow-lg transition-opacity duration-200">
+                {/* Move reaction tooltip to the right of the entire message */}
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 
+                  bg-base-300 rounded-lg p-2 shadow-lg transition-opacity duration-200 z-10
+                  absolute right-2 top-2"
+                >
                   {/* Quick Reaction Buttons */}
                   {FREQUENT_EMOJIS.map((emoji) => {
                     const existingReaction = message.reactions?.find(r => r.emoji === emoji);
-                    const hasReacted = existingReaction && getUserById(message.created_by)?.id ? hasUserReacted(existingReaction, getUserById(message.created_by)?.id) : false;
+                    const hasReacted = existingReaction && getUserById(message.created_by)?.id 
+                      ? hasUserReacted(existingReaction, getUserById(message.created_by)?.id) 
+                      : false;
                     
                     return (
                       <button
                         key={emoji}
-                        className={`hover:bg-base-100 p-1 rounded-full transition-colors duration-200
+                        className={`hover:bg-base-100 p-1.5 rounded-full transition-colors duration-200
                           ${hasReacted ? 'bg-base-100' : ''}`}
                         onClick={() => handleQuickReaction(message.id, emoji)}
                         title={hasReacted ? "Remove reaction" : "Add reaction"}
                       >
-                        {emoji}
+                        <span className="text-base">{emoji}</span>
                       </button>
                     );
                   })}
                   
                   {/* More Reactions Button */}
                   <button
-                    className="hover:bg-base-100 p-1 rounded-full transition-colors duration-200 ml-1"
+                    className="hover:bg-base-100 p-1.5 rounded-full transition-colors duration-200 ml-1"
                     onClick={(e) => handleReactionClick(message.id, e)}
                     title="More reactions"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
                   </button>
