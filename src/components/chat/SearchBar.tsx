@@ -108,11 +108,11 @@ const SearchBar = () => {
       );
 
       const data = await response.json();
+      console.log('Search results:', data);
       setResults(data);
       setError(null);
     } catch (error) {
       console.error('Search error:', error);
-      // Only show user-facing errors for authentication issues
       if (error instanceof Error && error.message.includes('authentication')) {
         setError(error.message);
       }
