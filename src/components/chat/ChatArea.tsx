@@ -62,6 +62,14 @@ const ChatArea = ({
     ? users.find(u => u.id === currentConversation.userId)
     : null;
 
+    let messagesToDisplay = messages;
+  
+  if (currentChannel) {
+    messagesToDisplay = messages.filter(message => message.channel_id === currentChannel.id);
+  } else if (currentConversation) {
+    messagesToDisplay = messages.filter(message => message.created_by === currentConversation.userId);
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="p-3 border-b border-base-content/10 bg-base-200/50">
@@ -95,7 +103,7 @@ const ChatArea = ({
         )}
       </div>
       <MessageList 
-        messages={messages} 
+        messages={messagesToDisplay} 
         users={users}
         channelId={currentChannel?.id}
         userId={userId}
