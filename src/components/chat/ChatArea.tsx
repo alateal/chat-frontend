@@ -81,13 +81,8 @@ const ChatArea = ({
         currentUserId={currentUserId}
         onAddReaction={onAddReaction}
         userStatuses={userStatuses}
-      />
-      <MessageInput
-        users={users}
-        conversations={conversations}
-        currentConversationId={currentConversationId}
-        currentUserId={currentUserId}
         onSendMessage={onSendMessage}
+        conversations={conversations}
       />
     </div>
   );
