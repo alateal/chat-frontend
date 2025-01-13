@@ -98,7 +98,7 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
     };
 
     fetchAllStatuses();
-    const intervalId = setInterval(fetchAllStatuses, 60000);
+    const intervalId = setInterval(fetchAllStatuses, 120000);
 
     return () => {
       updateStatus(false);

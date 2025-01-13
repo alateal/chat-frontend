@@ -147,7 +147,6 @@ const MessagePage = () => {
         throw new Error(errorData.error || "Failed to send message");
       }
 
-      // No need to update state here - Pusher will handle it
       await response.json();
     } catch (error) {
       console.error("Error sending message:", error);
