@@ -83,6 +83,7 @@ const ChatArea = ({
         userStatuses={userStatuses}
       />
       <MessageInput
+        users={users}
         conversations={conversations}
         currentConversationId={currentConversationId}
         currentUserId={currentUserId}

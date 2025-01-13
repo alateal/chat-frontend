@@ -71,19 +71,21 @@ const Sidebar = ({
             {users
               .filter(user => user.id !== currentUserId)
               .map(user => {
-                const existingConversation = conversations.find(
+                const dmConversation = conversations.find(
                   conv => !conv.is_channel && 
                   conv.conversation_members.length === 2 &&
                   conv.conversation_members.includes(user.id) &&
                   conv.conversation_members.includes(currentUserId)
                 );
-                const isSelected = existingConversation?.id === currentConversationId;
+
+                const isActive = dmConversation?.id === currentConversationId;
+
                 return (
                   <button
                     key={user.id}
                     onClick={() => onCreateConversation(false, [user.id, currentUserId])}
                     className={`w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
-                      ${isSelected ? 'bg-gray-100' : ''}`}
+                      ${isActive ? 'bg-gray-100' : ''}`}
                   >
                     <div className="relative">
                       <div className="w-8 h-8 rounded-full overflow-hidden">

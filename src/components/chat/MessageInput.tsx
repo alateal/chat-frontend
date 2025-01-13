@@ -18,9 +18,10 @@ const MessageInput = ({ onSendMessage, users, conversations, currentConversation
   const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
 
   const currentConversation = conversations.find(conv => conv.id === currentConversationId);
-  const otherUser = currentConversation && !currentConversation.is_channel
+
+  const otherUser = currentConversation && !currentConversation?.is_channel
     ? users.find(user => 
-        currentConversation.conversation_members.includes(user.id) && 
+        currentConversation?.conversation_members?.includes(user.id) && 
         user.id !== currentUserId
       )
     : null;
