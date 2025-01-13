@@ -1,32 +1,39 @@
 import { useState } from 'react';
 import { FileUpload } from './FileUpload';
+import { Conversation, FileAttachment, User } from '../../types';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, files?: FileMetadata[]) => void;
-  channelName?: string;
+  onSendMessage: (content: string, conversationId: string, files?: FileAttachment[], parentMessageId?: string) => void;
+  currentConversationId: string;
+  conversations: Conversation[];
+  currentUserId: string;
+  parentMessageId?: string;
+  users: User[];
+  placeholder?: string;
 }
 
-interface FileMetadata {
-  id: string;
-  file_name: string;
-  file_type: string;
-  file_size: number;
-  file_url: string;
-}
 
-const MessageInput = ({ onSendMessage, channelName }: MessageInputProps) => {
+const MessageInput = ({ onSendMessage, users, conversations, currentConversationId, currentUserId, parentMessageId, placeholder }: MessageInputProps) => {
   const [message, setMessage] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState<FileMetadata[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
+
+  const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+  const otherUser = currentConversation && !currentConversation.is_channel
+    ? users.find(user => 
+        currentConversation.conversation_members.includes(user.id) && 
+        user.id !== currentUserId
+      )
+    : null;
 
   const handleSend = () => {
     if (message.trim() || attachedFiles.length > 0) {
-      onSendMessage(message, attachedFiles);
+      onSendMessage(message, currentConversationId, attachedFiles, parentMessageId);
       setMessage('');
       setAttachedFiles([]);
     }
   };
 
-  const handleFileUpload = (fileData: FileMetadata) => {
+  const handleFileUpload = (fileData: FileAttachment) => {
     setAttachedFiles(prev => [...prev, fileData]);
   };
 
@@ -39,7 +46,7 @@ const MessageInput = ({ onSendMessage, channelName }: MessageInputProps) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          placeholder={`Message ${channelName || ''}`}
+          placeholder={placeholder || `Message ${currentConversation?.name || otherUser?.username || ''}`}
           className="input input-bordered flex-1"
         />
         <button 

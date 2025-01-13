@@ -1,6 +1,5 @@
-import React from 'react';
-import MessageInput from './MessageInput';
-import { Message, User } from '../types';
+import MessageInput from "./MessageInput";
+import { Message, User } from "../types";
 
 interface ThreadViewProps {
   parentMessage: Message;
@@ -10,16 +9,32 @@ interface ThreadViewProps {
   onClose: () => void;
 }
 
-const ThreadView = ({ parentMessage, replies, users, onSendReply, onClose }: ThreadViewProps) => {
-  const getUserById = (userId: string) => users.find(user => user.id === userId);
+const ThreadView = ({
+  parentMessage,
+  replies,
+  users,
+  onSendReply,
+  onClose,
+}: ThreadViewProps) => {
+  const getUserById = (userId: string) =>
+    users.find((user) => user.id === userId);
 
   return (
     <div className="flex flex-col h-full border-l border-base-300">
       <div className="p-4 border-b border-base-300 flex justify-between items-center">
         <h3 className="font-semibold">Thread</h3>
         <button onClick={onClose} className="btn btn-ghost btn-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
           </svg>
         </button>
       </div>
@@ -59,10 +74,17 @@ const ThreadView = ({ parentMessage, replies, users, onSendReply, onClose }: Thr
       </div>
 
       <div className="p-4 border-t border-base-300">
-        <MessageInput onSendMessage={onSendReply} placeholder="Reply in thread..." />
+        <MessageInput
+          parentMessageId={parentMessage.id}
+          onSendMessage={onSendReply}
+          placeholder="Reply in thread..."
+          users={users}
+          currentConversationId={currentConversationId}
+          conversations={conversations}
+        />
       </div>
     </div>
   );
 };
 
-export default ThreadView; 
+export default ThreadView;

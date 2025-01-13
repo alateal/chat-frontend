@@ -61,7 +61,6 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
     // Set up Pusher subscription
     const presenceChannel = pusher.subscribe('presence');
     presenceChannel.bind('status-updated', (data: { userId: string; isOnline: boolean }) => {
-      console.log('Status update received:', data);
       setUserStatuses(prev => ({
         ...prev,
         [data.userId]: data.isOnline
@@ -99,7 +98,7 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
     };
 
     fetchAllStatuses();
-    const intervalId = setInterval(fetchAllStatuses, 30000);
+    const intervalId = setInterval(fetchAllStatuses, 60000);
 
     return () => {
       updateStatus(false);

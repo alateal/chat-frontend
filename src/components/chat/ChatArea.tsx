@@ -1,125 +1,95 @@
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
-import SearchBar from './SearchBar';
-
-import { useUserStatus } from '../../contexts/UserStatusContext';
-
-
-interface Channel {
-  id: string;
-  name: string;
-  created_at: string;
-  created_by: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  imageUrl: string;
-}
-
-interface UserStatus {
-  [key: string]: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  created_at: string;
-  created_by: string;
-  channel_id: string;
-}
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+import { Conversation, FileAttachment, Message, User } from "../../types";
+import { useUserStatus } from "../../contexts/UserStatusContext";
 
 interface ChatAreaProps {
   messages: Message[];
   users: User[];
-  currentChannel?: Channel;
-  currentConversation?: { userId: string };
-  userId: string;
-  onSendMessage: (content: string) => void;
+  conversations: Conversation[];
+  currentConversationId: string;
+  currentUserId: string;
+  onSendMessage: (
+    content: string,
+    conversationId: string,
+    files?: FileAttachment[],
+    parentMessageId?: string
+  ) => void;
   onAddReaction: (messageId: string, emoji: string) => void;
-  onLoadMore: () => void;
-  isLoadingMessages: boolean;
-  hasMoreMessages: boolean;
-  getToken: () => Promise<string | null>;
 }
 
-const ChatArea = ({ 
-  messages, 
-  users, 
-  currentChannel, 
-  currentConversation,
-  userId,
-  onSendMessage, 
+const ChatArea = ({
+  messages,
+  users,
+  conversations,
+  currentConversationId,
+  currentUserId,
+  onSendMessage,
   onAddReaction,
-  onLoadMore,
-  isLoadingMessages,
-  hasMoreMessages,
-  getToken
 }: ChatAreaProps) => {
   const { userStatuses } = useUserStatus();
-  const selectedUser = currentConversation 
-    ? users.find(u => u.id === currentConversation.userId)
-    : null;
 
-    let messagesToDisplay = messages;
+  const messagesToDisplay = messages.filter(message => message.conversation_id === currentConversationId);
+  const currentConversation = conversations.find(conv => conv.id === currentConversationId);
   
-  if (currentChannel) {
-    messagesToDisplay = messages.filter(message => message.channel_id === currentChannel.id);
-  } else if (currentConversation) {
-    messagesToDisplay = messages.filter(message => message.created_by === currentConversation.userId);
-  }
+  // Get the other user in case of DM
+  const otherUser = currentConversation && !currentConversation.is_channel
+    ? users.find(user => 
+        currentConversation?.conversation_members?.includes(user.id) && 
+        user.id !== currentUserId
+      )
+    : null;
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="p-3 border-b border-base-content/10 bg-base-200/50">
-        <SearchBar />
-      </div>
-      <div className="p-4 border-b border-base-content/10">
-        {currentChannel ? (
-          <h2 className="text-lg font-semibold">
-            # {currentChannel.name}
-          </h2>
-        ) : selectedUser ? (
+      <div className="p-4 border-b border-gray-200 bg-white">
+        {!currentConversation ? (
+          <h2 className="text-lg font-semibold text-gray-500">Select a conversation</h2>
+        ) : currentConversation.is_channel ? (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-xl">#</span>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {currentConversation.name}
+            </h2>
+          </div>
+        ) : otherUser ? (
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-8 h-8 rounded-full overflow-hidden">
-                <img 
-                  src={selectedUser.imageUrl || `https://ui-avatars.com/api/?name=${selectedUser.username}`}
-                  alt={selectedUser.username}
+                <img
+                  src={otherUser.imageUrl}
+                  alt={otherUser.username}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div 
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-base-100
-                  transition-colors duration-300
-                  ${userStatuses[selectedUser.id] ? 'bg-success' : 'bg-base-300'}`}
+              <div
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+                  ${userStatuses[otherUser.id] ? "bg-green-500" : "bg-gray-300"}`}
               />
             </div>
-            <h2 className="text-lg font-semibold">{selectedUser.username}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {otherUser.username}
+            </h2>
           </div>
-        ) : (
-          <h2 className="text-lg font-semibold">Select a conversation</h2>
-        )}
+        ) : null}
       </div>
-      <MessageList 
-        messages={messagesToDisplay} 
+
+      <MessageList
+        messages={messagesToDisplay}
         users={users}
-        channelId={currentChannel?.id}
-        userId={userId}
-        getToken={getToken}
+        currentConversationId={currentConversationId}
+        currentUserId={currentUserId}
         onAddReaction={onAddReaction}
-        onLoadMore={onLoadMore}
-        isLoadingMessages={isLoadingMessages}
-        hasMoreMessages={hasMoreMessages}
         userStatuses={userStatuses}
       />
-      <MessageInput 
+      <MessageInput
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        currentUserId={currentUserId}
         onSendMessage={onSendMessage}
-        channelName={currentChannel?.name}
       />
     </div>
   );
 };
 
-export default ChatArea; 
+export default ChatArea;

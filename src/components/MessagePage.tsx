@@ -1,115 +1,72 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import Sidebar from './sidebar/Sidebar';
-import ChatArea from './chat/ChatArea';
-import Pusher from 'pusher-js';
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import Sidebar from "./sidebar/Sidebar";
+import ChatArea from "./chat/ChatArea";
+import Pusher from "pusher-js";
+import { Conversation, FileAttachment, Message, User } from "../types";
+import SearchBar from "./chat/SearchBar";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-interface Channel {
-  id: string;
-  name: string;
-  created_at: string;
-  created_by: string;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  created_at: string;
-  created_by: string;
-  channel_id: string;
-  user: User;
-}
-
-interface User {
-  id: string;
-  username: string;
-  imageUrl: string;
-}
-
-interface DirectMessage extends Message {
-  conversation_id: string;
-}
-
-interface FileMetadata {
-  id: string;
-  file_name: string;
-  file_type: string;
-  file_size: number;
-  file_url: string;
-}
-
 const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
-  enabledTransports: ['ws', 'wss']
+  enabledTransports: ["ws", "wss"],
 });
 
-// Add fetchWithRetry utility
-const fetchWithRetry = async (url: string, headers: HeadersInit, maxRetries = 3) => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(url, { headers });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return response;
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+const fetchWithAuth = async (url: string, options?: RequestInit) => {
+  const token = await window.Clerk.session.getToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options?.headers || {})
     }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-  throw new Error('Failed to fetch after retries');
+  
+  return response;
 };
 
 const MessagePage = () => {
   const { getToken, userId } = useAuth();
-  const [channels, setChannels] = useState<Channel[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedChannelId, setSelectedChannelId] = useState<string>();
-  const [error, setError] = useState<string | null>(null);
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>();
   const [currentConversationId, setCurrentConversationId] = useState<string>();
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false);
-  const selectedConversation = selectedUserId ? { userId: selectedUserId } : undefined;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = await getToken();
         if (!token) {
-          throw new Error('No authentication token available');
+          throw new Error("No authentication token available");
         }
 
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        };
-
-        const [channelsRes, messagesRes, usersRes] = await Promise.all([
-          fetchWithRetry(`${API_URL}/api/channels`, headers),
-          fetchWithRetry(`${API_URL}/api/messages`, headers),
-          fetchWithRetry(`${API_URL}/api/users`, headers)
+        const [conversationsRes, messagesRes, usersRes] = await Promise.all([
+          fetchWithAuth(`${API_URL}/api/conversations/me`),
+          fetchWithAuth(`${API_URL}/api/messages`),
+          fetchWithAuth(`${API_URL}/api/users`),
         ]);
 
-        const [channelsData, messagesData, usersData] = await Promise.all([
-          channelsRes.json(),
+        const [conversationsData, messagesData, usersData] = await Promise.all([
+          conversationsRes.json(),
           messagesRes.json(),
-          usersRes.json()
+          usersRes.json(),
         ]);
 
-        setChannels(channelsData.channels || []);
+        setConversations(conversationsData.conversations || []);
         setMessages(messagesData.messages || []);
         setUsers(usersData.users.data || []);
 
-        if (channelsData.channels?.length > 0) {
-          setSelectedChannelId(channelsData.channels[0].id);
+        if (conversationsData.conversations?.length > 0) {
+          setCurrentConversationId(conversationsData.conversations[0].id);
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        console.error("Error fetching data:", err);
       }
     };
 
@@ -117,255 +74,176 @@ const MessagePage = () => {
   }, [getToken]);
 
   useEffect(() => {
-    const channelsChannel = pusher.subscribe('channels');
-    let messageChannel: any;
-
-    // Handle channel messages
-    if (selectedChannelId) {
-      messageChannel = pusher.subscribe(`channel-${selectedChannelId}`);
-      
-      messageChannel.bind('new-message', (newMessage: Message) => {
-        setMessages(prevMessages => {
-          if (prevMessages.some(msg => msg.id === newMessage.id)) {
-            return prevMessages;
-          }
-          return [...prevMessages, newMessage];
-        });
-      });
-
-      // Add back reaction updates for channel messages
-      messageChannel.bind('message-updated', (updatedMessage: Message) => {
-        setMessages(prevMessages => 
-          prevMessages.map(message => 
-            message.id === updatedMessage.id ? updatedMessage : message
-          )
-        );
-      });
-    }
-
-    // Handle direct messages
-    if (currentConversationId) {
-      messageChannel = pusher.subscribe(`conversation-${currentConversationId}`);
-      
-      messageChannel.bind('new-message', (newMessage: DirectMessage) => {
-        setDirectMessages(prevMessages => {
-          const isDuplicate = prevMessages.some(msg => msg.id === newMessage.id);
-          if (isDuplicate) return prevMessages;
-          
-          if (newMessage.conversation_id === currentConversationId) {
-            return [...prevMessages, newMessage].sort((a, b) => 
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
-          }
-          return prevMessages;
-        });
-      });
-
-      // Add back reaction updates for direct messages
-      messageChannel.bind('message-updated', (updatedMessage: DirectMessage) => {
-        setDirectMessages(prevMessages => 
-          prevMessages.map(message => 
-            message.id === updatedMessage.id ? updatedMessage : message
-          )
-        );
-      });
-    }
+    const presenceChannel = pusher.subscribe('presence');
+    presenceChannel.bind('user-created', (data: { user: User }) => {
+      setUsers((prevUsers) => [...prevUsers, data.user]);
+    });
 
     return () => {
-      channelsChannel.unbind_all();
-      channelsChannel.unsubscribe();
-      if (messageChannel) {
-        messageChannel.unbind_all();
-        messageChannel.unsubscribe();
-      }
+      presenceChannel.unbind_all();
+      presenceChannel.unsubscribe();
     };
-  }, [selectedChannelId, currentConversationId]);
+  }, [getToken]);
 
-  const handleCreateChannel = async (name: string) => {
-    try {
-      const token = await getToken();
-      const response = await fetch(`${API_URL}/api/channels`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
+  useEffect(() => {
+    const conversationChannel = pusher.subscribe(
+      `conversation-${currentConversationId}`
+    );
+
+    conversationChannel.bind("new-message", (newMessage: Message) => {
+      setMessages((prevMessages) => {
+        // Check if message already exists
+        if (prevMessages.some(msg => msg.id === newMessage.id)) {
+          return prevMessages;
+        }
+        return [...prevMessages, newMessage];
       });
+    });
 
-      if (!response.ok) {
-        console.error('Error creating channel:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error creating channel:', error);
-    }
+    // Add back reaction updates for direct messages
+    conversationChannel.bind("message-updated", (updatedMessage: Message) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message
+        )
+      );
+    });
+
+    return () => {
+      conversationChannel.unbind_all();
+      conversationChannel.unsubscribe();
+    };
+  }, [currentConversationId]);
+
+  const handleSelectConversation = (conversationId: string) => {
+    setCurrentConversationId(conversationId);
   };
 
-  const handleSelectChannel = (channelId: string) => {
-    setSelectedChannelId(channelId);
-  };
-
-  const currentChannel = channels.find(channel => channel.id === selectedChannelId);
+  const handleCreateConversation = async (isChannel: boolean, members: string[], name?: string) => {
+    const conversation = await fetchWithAuth(`${API_URL}/api/conversations`, {
+      method: "POST",
+      body: JSON.stringify({ isChannel, name, members }),
+    });
+    setConversations((prevConversations) => [...prevConversations, conversation]);
+    setCurrentConversationId(conversation.id);
+  };   
 
   const handleSelectUser = async (userId: string) => {
     setSelectedUserId(userId);
-    setSelectedChannelId(undefined);
+    setcurrentConversationId(undefined);
     setCurrentPage(0);
     setHasMoreMessages(false);
     setDirectMessages([]);
 
     try {
       const token = await getToken();
-      const response = await fetch(`${API_URL}/api/conversations`, {
-        method: 'POST',
+      const response = await fetchWithAuth(`${API_URL}/api/conversations`, {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ otherUserId: userId }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get/create conversation');
+        throw new Error(errorData.error || "Failed to get/create conversation");
       }
-      
+
       const { conversation } = await response.json();
       setCurrentConversationId(conversation.id);
 
       const messagesResponse = await fetch(
-        `${API_URL}/api/conversations/${conversation.id}/messages?page=0`, 
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        `${API_URL}/api/conversations/${conversation.id}/messages?page=0`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
-      
+      if (!messagesResponse.ok) throw new Error("Failed to fetch messages");
+
       const { messages, hasMore } = await messagesResponse.json();
       setDirectMessages(messages);
       setHasMoreMessages(hasMore);
     } catch (error) {
-      console.error('Error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load conversation');
+      console.error("Error:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load conversation"
+      );
     }
   };
 
-  const handleSendMessage = async (content: string, files?: FileMetadata[]) => {
+  const handleSendMessage = async (content: string, conversationId: string, files?: FileAttachment[], parentMessageId?: string) => {
     try {
-      if (!selectedChannelId && !currentConversationId) {
-        throw new Error('No channel or conversation selected');
-      }
-
-      const token = await getToken();
-      const endpoint = selectedChannelId 
-        ? `${API_URL}/api/messages`
-        : `${API_URL}/api/conversations/${currentConversationId}/messages`;
-
       const body = {
         content,
-        ...(selectedChannelId && { channel_id: selectedChannelId }),
-        ...(files?.length && { files })
+        conversation_id: conversationId,
+        files,
+        parent_message_id: parentMessageId,
       };
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetchWithAuth(`${API_URL}/api/messages`, {
+        method: "POST",
         body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send message');
+        throw new Error(errorData.error || "Failed to send message");
       }
 
       // No need to update state here - Pusher will handle it
       await response.json();
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       throw error;
     }
   };
 
   const handleAddReaction = async (messageId: string, emoji: string) => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${API_URL}/api/messages/${messageId}/reactions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ emoji }),
-      });
-
-      if (!response.ok) {
-        console.error('Error adding reaction:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-    }
-  };
-
-  const loadMoreMessages = async () => {
-    if (!currentConversationId || isLoadingMessages || !hasMoreMessages) return;
-
-    try {
-      setIsLoadingMessages(true);
-      const token = await getToken();
-      const nextPage = currentPage + 1;
-      
-      const response = await fetch(
-        `${API_URL}/api/conversations/${currentConversationId}/messages?page=${nextPage}`, 
-        { headers: { 'Authorization': `Bearer ${token}` } }
+      const response = await fetchWithAuth(
+        `${API_URL}/api/messages/${messageId}/reactions`,
+        {
+          method: "POST",
+          body: JSON.stringify({ emoji }),
+        }
       );
 
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      
-      const { messages, hasMore } = await response.json();
-      setDirectMessages(prevMessages => [...messages, ...prevMessages]);
-      setHasMoreMessages(hasMore);
-      setCurrentPage(nextPage);
+      if (!response.ok) {
+        console.error("Error adding reaction:", response.statusText);
+      }
     } catch (error) {
-      console.error('Error loading more messages:', error);
-    } finally {
-      setIsLoadingMessages(false);
+      console.error("Error adding reaction:", error);
     }
   };
 
-  if (error) {
-    return <div className="p-4 text-error">Error: {error}</div>;
-  }
-
   return (
-    <div className="flex h-screen bg-base-200">
-      <Sidebar 
-        channels={channels} 
-        users={users} 
-        selectedChannelId={selectedChannelId}
-        selectedUserId={selectedUserId}
-        currentUserId={userId || ''}
-        onSelectChannel={handleSelectChannel}
-        onCreateChannel={handleCreateChannel}
-        onSelectUser={handleSelectUser}
-      />
-      <ChatArea 
-        messages={selectedChannelId ? messages : directMessages} 
-        users={users}
-        currentChannel={currentChannel}
-        currentConversation={selectedUserId ? { userId: selectedUserId } : undefined}
-        userId={userId || ''}
-        getToken={getToken}
-        onSendMessage={handleSendMessage}
-        onAddReaction={handleAddReaction}
-        onLoadMore={loadMoreMessages}
-        isLoadingMessages={isLoadingMessages}
-        hasMoreMessages={hasMoreMessages}
-      />
+    <div className="flex flex-col h-screen bg-base-200">
+      <div className="p-3 bg-white border-b border-gray-200">
+        <SearchBar />
+      </div>
+      
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          conversations={conversations}
+          users={users}
+          currentConversationId={currentConversationId}
+          currentUserId={userId || ""}
+          onSelectConversation={handleSelectConversation}
+          onCreateConversation={handleCreateConversation}
+        />
+        <ChatArea
+          conversations={conversations}
+          messages={messages}
+          users={users}
+          currentConversationId={currentConversationId}
+          currentUserId={userId}
+          onSendMessage={handleSendMessage}
+          onAddReaction={handleAddReaction}
+        />
+      </div>
     </div>
   );
 };
 
 export default MessagePage;
-
