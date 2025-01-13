@@ -128,50 +128,6 @@ const MessagePage = () => {
     setCurrentConversationId(conversation.id);
   };   
 
-  const handleSelectUser = async (userId: string) => {
-    setSelectedUserId(userId);
-    setcurrentConversationId(undefined);
-    setCurrentPage(0);
-    setHasMoreMessages(false);
-    setDirectMessages([]);
-
-    try {
-      const token = await getToken();
-      const response = await fetchWithAuth(`${API_URL}/api/conversations`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ otherUserId: userId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to get/create conversation");
-      }
-
-      const { conversation } = await response.json();
-      setCurrentConversationId(conversation.id);
-
-      const messagesResponse = await fetch(
-        `${API_URL}/api/conversations/${conversation.id}/messages?page=0`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!messagesResponse.ok) throw new Error("Failed to fetch messages");
-
-      const { messages, hasMore } = await messagesResponse.json();
-      setDirectMessages(messages);
-      setHasMoreMessages(hasMore);
-    } catch (error) {
-      console.error("Error:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load conversation"
-      );
-    }
-  };
-
   const handleSendMessage = async (content: string, conversationId: string, files?: FileAttachment[], parentMessageId?: string) => {
     try {
       const body = {
