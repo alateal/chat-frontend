@@ -52,7 +52,7 @@ const MessagePage = () => {
         ]);
 
         setConversations(conversationsData.conversations);
-        setUsers(usersData.users.data);
+        setUsers(usersData.users.data.concat({ id: "user_ai", username: "AI", imageUrl: "/vite.svg" }));
 
         if (conversationsData.conversations?.length > 0) {
           const params = new URLSearchParams(window.location.search);
