@@ -43,16 +43,17 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3)
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, options);
-      const contentType = response.headers.get("content-type");
       
       if (!response.ok) {
+        const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json();
-          throw new Error(errorData.error);
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         } else {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
+      
       return response;
     } catch (error) {
       if (i === maxRetries - 1) throw error;
@@ -112,9 +113,7 @@ const SearchBar = () => {
       setError(null);
     } catch (error) {
       console.error('Search error:', error);
-      if (error instanceof Error && error.message.includes('authentication')) {
-        setError(error.message);
-      }
+      setError(error instanceof Error ? error.message : 'Error performing search');
       setResults({
         messages: [],
         users: [],

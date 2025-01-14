@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUserStatus } from '../../contexts/UserStatusContext';
 import { User, Conversation } from '../../types';
+import { UserButton } from "@clerk/clerk-react";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -104,6 +105,18 @@ const Sidebar = ({
                   </button>
                 );
               })}
+          </div>
+        </div>
+      </div>
+
+      {/* Account Section */}
+      <div className="mt-auto p-4 border-t border-base-200">
+        <div className="flex items-center gap-3">
+          <UserButton afterSignOutUrl="/" />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-900">
+              {users.find(u => u.id === currentUserId)?.username}
+            </div>
           </div>
         </div>
       </div>

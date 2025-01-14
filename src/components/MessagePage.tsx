@@ -99,15 +99,26 @@ const MessagePage = () => {
       });
     });
 
-    // Add back reaction updates for direct messages
     conversationChannel.bind("message-updated", (updatedMessage: Message) => {
-      setMessages((prevMessages) =>
-        prevMessages.map((message) =>
-          message.id === updatedMessage.id ? updatedMessage : message
-        )
-      );
+      console.log('Message updated received:', updatedMessage);
+      setMessages((prevMessages) => {
+        // Find and update the message
+        const messageIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
+        if (messageIndex === -1) {
+          return prevMessages;
+        }
+
+        const newMessages = [...prevMessages];
+        newMessages[messageIndex] = {
+          ...newMessages[messageIndex],
+          ...updatedMessage
+        };
+        return newMessages;
+      });
     });
+
     return () => {
+      console.log(`Unsubscribing from conversation-${currentConversationId}`);
       conversationChannel.unbind_all();
       conversationChannel.unsubscribe();
     };
@@ -179,19 +190,17 @@ const MessagePage = () => {
 
   const handleAddReaction = async (messageId: string, emoji: string) => {
     try {
-      const response = await fetchWithAuth(
+      await fetchWithAuth(
         `${API_URL}/api/messages/${messageId}/reactions`,
         {
           method: "POST",
           body: JSON.stringify({ emoji }),
         }
       );
-
-      if (!response.ok) {
-        console.error("Error adding reaction:", response.statusText);
-      }
+      // No need to check response.ok since fetchWithAuth already handles errors
+      // The message update will come through the Pusher event
     } catch (error) {
-      console.error("Error adding reaction:", error);
+      console.error("Error adding reaction:", error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
