@@ -108,7 +108,6 @@ const SearchBar = () => {
       );
 
       const data = await response.json();
-      console.log('Search results:', data);
       setResults(data);
       setError(null);
     } catch (error) {

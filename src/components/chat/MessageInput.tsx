@@ -16,7 +16,6 @@ interface MessageInputProps {
 const MessageInput = ({ onSendMessage, users, conversations, currentConversationId, currentUserId, parentMessageId, placeholder }: MessageInputProps) => {
   const [message, setMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
-
   const currentConversation = conversations.find(conv => conv.id === currentConversationId);
 
   const otherUser = currentConversation && !currentConversation?.is_channel

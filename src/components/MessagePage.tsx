@@ -7,28 +7,28 @@ import { Conversation, FileAttachment, Message, User } from "../types";
 import SearchBar from "./chat/SearchBar";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
+Pusher.logToConsole = true;
 const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
-  enabledTransports: ["ws", "wss"],
+  enabledTransports: ["ws", "wss"]
 });
 
-const fetchWithAuth = async (url: string, options?: RequestInit) => {
+export const fetchWithAuth = async (url: string, options?: RequestInit) => {
   const token = await window.Clerk.session.getToken();
   const response = await fetch(url, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options?.headers || {})
-    }
+      "Content-Type": "application/json",
+      ...(options?.headers || {}),
+    },
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
-  return response;
+
+  return response.json();
 };
 
 const MessagePage = () => {
@@ -36,7 +36,7 @@ const MessagePage = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string>();
+  const [currentConversationId, setCurrentConversationId] = useState<number>();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,24 +46,22 @@ const MessagePage = () => {
           throw new Error("No authentication token available");
         }
 
-        const [conversationsRes, messagesRes, usersRes] = await Promise.all([
+        const [conversationsData, usersData] = await Promise.all([
           fetchWithAuth(`${API_URL}/api/conversations/me`),
-          fetchWithAuth(`${API_URL}/api/messages`),
           fetchWithAuth(`${API_URL}/api/users`),
         ]);
 
-        const [conversationsData, messagesData, usersData] = await Promise.all([
-          conversationsRes.json(),
-          messagesRes.json(),
-          usersRes.json(),
-        ]);
-
-        setConversations(conversationsData.conversations || []);
-        setMessages(messagesData.messages || []);
-        setUsers(usersData.users.data || []);
+        setConversations(conversationsData.conversations);
+        setUsers(usersData.users.data);
 
         if (conversationsData.conversations?.length > 0) {
-          setCurrentConversationId(conversationsData.conversations[0].id);
+          const params = new URLSearchParams(window.location.search);
+          const conversationId = params.get("conversationId");
+          if (conversationId) {
+            handleSelectConversation(conversationId);
+          } else {
+            handleSelectConversation(conversationsData.conversations[0].id);
+          }
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -74,8 +72,8 @@ const MessagePage = () => {
   }, [getToken]);
 
   useEffect(() => {
-    const presenceChannel = pusher.subscribe('presence');
-    presenceChannel.bind('user-created', (data: { user: User }) => {
+    const presenceChannel = pusher.subscribe("presence");
+    presenceChannel.bind("user-created", (data: { user: User }) => {
       setUsers((prevUsers) => [...prevUsers, data.user]);
     });
 
@@ -92,8 +90,9 @@ const MessagePage = () => {
 
     conversationChannel.bind("new-message", (newMessage: Message) => {
       setMessages((prevMessages) => {
+        console.log('New message received:', newMessage);
         // Check if message already exists
-        if (prevMessages.some(msg => msg.id === newMessage.id)) {
+        if (prevMessages.some((msg) => msg.id === newMessage.id)) {
           return prevMessages;
         }
         return [...prevMessages, newMessage];
@@ -108,27 +107,60 @@ const MessagePage = () => {
         )
       );
     });
-
     return () => {
       conversationChannel.unbind_all();
       conversationChannel.unsubscribe();
     };
   }, [currentConversationId]);
 
-  const handleSelectConversation = (conversationId: string) => {
-    setCurrentConversationId(conversationId);
+  useEffect(() => {
+    // Get conversation ID from URL on initial load
+    const params = new URLSearchParams(window.location.search);
+    const conversationId = params.get("conversation");
+    if (conversationId) {
+      handleSelectConversation(conversationId.toString());
+    }
+  }, []); // Empty dependency array for initial load only
+
+  const handleSelectConversation = async (conversationId: string) => {
+    setCurrentConversationId(Number(conversationId));
+    const messages = await fetchWithAuth(
+      `${API_URL}/api/conversations/${conversationId}/messages`
+    );
+
+    setMessages((prevMessages) => {
+      const messageMap = new Map(
+        [...prevMessages, ...messages].map((msg) => [msg.id, msg])
+      );
+      return Array.from(messageMap.values());
+    });
+
+    window.history.pushState({}, "", `?conversationId=${conversationId}`);
   };
 
-  const handleCreateConversation = async (isChannel: boolean, members: string[], name?: string) => {
-    const conversation = await fetchWithAuth(`${API_URL}/api/conversations`, {
+  const handleCreateConversation = async (
+    isChannel: boolean,
+    members: string[],
+    name?: string
+  ) => {
+    const response = await fetchWithAuth(`${API_URL}/api/conversations`, {
       method: "POST",
       body: JSON.stringify({ isChannel, name, members }),
     });
-    setConversations((prevConversations) => [...prevConversations, conversation]);
-    setCurrentConversationId(conversation.id);
-  };   
+    const conversation = response.conversation;
+    setConversations((prevConversations) => [
+      ...prevConversations,
+      conversation,
+    ]);
+    handleSelectConversation(conversation.id);
+  };
 
-  const handleSendMessage = async (content: string, conversationId: string, files?: FileAttachment[], parentMessageId?: string) => {
+  const handleSendMessage = async (
+    content: string,
+    conversationId: string,
+    files?: FileAttachment[],
+    parentMessageId?: string
+  ) => {
     try {
       const body = {
         content,
@@ -136,21 +168,12 @@ const MessagePage = () => {
         files,
         parent_message_id: parentMessageId,
       };
-
-      const response = await fetchWithAuth(`${API_URL}/api/messages`, {
+      await fetchWithAuth(`${API_URL}/api/messages`, {
         method: "POST",
         body: JSON.stringify(body),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send message");
-      }
-
-      await response.json();
     } catch (error) {
       console.error("Error sending message:", error);
-      throw error;
     }
   };
 
@@ -177,7 +200,7 @@ const MessagePage = () => {
       <div className="p-3 bg-white border-b border-gray-200">
         <SearchBar />
       </div>
-      
+
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           conversations={conversations}
