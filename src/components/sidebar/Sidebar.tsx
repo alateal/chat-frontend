@@ -34,15 +34,23 @@ const Sidebar = ({
   };
 
   return (
-    <div className="w-64 bg-white border-r border-base-200 flex flex-col">
+    <div className="w-64 bg-white border-r border-pink-100 flex flex-col">
+      {/* App Title */}
+      <div className="p-4 border-b border-pink-100 bg-gradient-to-r from-pink-50 to-white">
+        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <span className="text-pink-600">Piggy</span>
+          <span>Chat</span>
+        </h1>
+      </div>
+
       {/* Channels Section */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold text-gray-900">Channels</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Channels</h2>
             <button
               onClick={() => setShowNewChannelModal(true)}
-              className="btn btn-ghost btn-sm text-gray-600 hover:bg-gray-100"
+              className="btn btn-ghost btn-sm text-pink-600 hover:bg-pink-50"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -56,10 +64,10 @@ const Sidebar = ({
               <button
                 key={channel.id}
                 onClick={() => onSelectConversation(channel.id)}
-                className={`w-full text-left px-2 py-1 rounded hover:bg-gray-100 transition-colors
-                  ${currentConversationId === channel.id ? 'bg-gray-100' : ''}`}
+                className={`w-full text-left px-2 py-1 rounded hover:bg-pink-50 transition-colors
+                  ${currentConversationId === channel.id ? 'bg-pink-50 text-pink-700' : 'text-gray-700'}`}
               >
-                <span className="text-gray-500">#</span> {channel.name}
+                <span className="text-pink-400">#</span> {channel.name}
               </button>
             ))}
           </div>
@@ -67,7 +75,7 @@ const Sidebar = ({
 
         {/* Direct Messages Section */}
         <div className="p-4">
-          <h2 className="text-lg font-semibold mb-2 text-gray-900">Direct Messages</h2>
+          <h2 className="text-lg font-semibold mb-2 text-gray-800">Direct Messages</h2>
           <div className="space-y-1">
             {users
               .filter(user => user.id !== currentUserId)
@@ -85,8 +93,8 @@ const Sidebar = ({
                   <button
                     key={user.id}
                     onClick={() => onCreateConversation(false, [user.id, currentUserId])}
-                    className={`w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition-colors
-                      ${isActive ? 'bg-gray-100' : ''}`}
+                    className={`w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-pink-50 transition-colors
+                      ${isActive ? 'bg-pink-50' : ''}`}
                   >
                     <div className="relative">
                       <div className="w-8 h-8 rounded-full overflow-hidden">
@@ -98,7 +106,8 @@ const Sidebar = ({
                       </div>
                       <div
                         className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white
-                          ${userStatuses[user.id] ? 'bg-green-500' : 'bg-gray-300'}`}
+                          ${user.id === "user_ai" ? 'bg-green-500' :
+                            userStatuses[user.id] ? 'bg-green-500' : 'bg-gray-300'}`}
                       />
                     </div>
                     <span className="text-gray-700">{user.username}</span>
@@ -110,7 +119,7 @@ const Sidebar = ({
       </div>
 
       {/* Account Section */}
-      <div className="mt-auto p-4 border-t border-base-200">
+      <div className="mt-auto p-4 border-t border-pink-100 bg-gradient-to-r from-white to-pink-50">
         <div className="flex items-center gap-3">
           <UserButton afterSignOutUrl="/" />
           <div className="flex-1">

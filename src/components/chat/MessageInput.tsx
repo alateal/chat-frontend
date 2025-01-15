@@ -38,7 +38,7 @@ const MessageInput = ({ onSendMessage, users, conversations, currentConversation
   };
 
   return (
-    <div className="p-4 bg-base-200">
+    <div className="p-4 bg-white-50">
       <div className="flex items-center gap-2">
         <FileUpload onFileUpload={handleFileUpload} />
         <input
@@ -51,7 +51,7 @@ const MessageInput = ({ onSendMessage, users, conversations, currentConversation
         />
         <button 
           onClick={handleSend}
-          className="btn btn-primary"
+          className="p-4 bg-pink-400 hover:bg-pink-500 text-white"
         >
           Send
         </button>

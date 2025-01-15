@@ -52,7 +52,7 @@ const MessagePage = () => {
         ]);
 
         setConversations(conversationsData.conversations);
-        setUsers(usersData.users.data.concat({ id: "user_ai", username: "AI", imageUrl: "/vite.svg" }));
+        setUsers(usersData.users.data.concat({ id: "user_ai", username: "AI", imageUrl: "/piggie.svg" }));
 
         if (conversationsData.conversations?.length > 0) {
           const params = new URLSearchParams(window.location.search);
@@ -205,8 +205,8 @@ const MessagePage = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-base-200">
-      <div className="p-3 bg-white border-b border-gray-200">
+    <div className="flex flex-col h-screen bg-pink-50">
+      <div className="p-3 bg-white border-b border-pink-100 shadow-sm">
         <SearchBar />
       </div>
 

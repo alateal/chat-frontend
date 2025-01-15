@@ -236,13 +236,21 @@ const MessageList = ({
                   </div>
                   <div className="relative flex-1">
                     <div className="chat-header">
-                      {getUserById(message.created_by)?.username ||
-                        "Unknown User"}
+                      <span className="text-[15px] font-semibold text-gray-900">
+                        {getUserById(message.created_by)?.username ||
+                          "Unknown User"}
+                      </span>
                       <time className="text-xs opacity-50 ml-2">
                         {formatTimestamp(message.created_at)}
                       </time>
                     </div>
-                    <div className="chat-bubble bg-white/90 text-base-content shadow-sm before:hidden">
+                    <div
+                      className={`chat-bubble ${
+                        message.created_by === currentUserId
+                          ? 'bg-pink-500 text-white' 
+                          : 'bg-pink-50 text-gray-800 border border-pink-100'
+                      } shadow-sm before:hidden`}
+                    >
                       {message.content}
 
                       {/* File attachments inside chat bubble */}
@@ -428,9 +436,8 @@ const MessageList = ({
                               key={`${reaction.emoji}-${index}`}
                               className={`
                               btn btn-sm btn-ghost gap-1 px-2 h-8 min-h-0
-                              hover:bg-base-300 transition-colors duration-200
-                              ${hasReacted ? "bg-base-300" : ""}
-                            `}
+                              hover:bg-pink-50 transition-colors duration-200
+                              ${hasReacted ? "bg-pink-50" : ""}`}
                               onClick={() =>
                                 handleQuickReaction(
                                   message.id,
@@ -506,7 +513,7 @@ const MessageList = ({
       </div>
 
       {/* Add MessageInput at the bottom */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-pink-100 bg-white">
         <MessageInput
           users={users}
           conversations={conversations}

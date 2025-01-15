@@ -40,39 +40,46 @@ const ChatArea = ({
       )
     : null;
 
+  const isUserOnline = (userId: string) => {
+    if (userId === "user_ai") return true; // AI is always online
+    return userStatuses[userId] || false;
+  };
+
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="p-4 border-b border-gray-200 bg-white">
-        {!currentConversation ? (
-          <h2 className="text-lg font-semibold text-gray-500">Select a conversation</h2>
-        ) : currentConversation.is_channel ? (
+    <div className="flex-1 flex flex-col bg-white">
+      {currentConversation && (
+        <div className="px-4 py-2 border-b border-pink-100 bg-gradient-to-r from-white to-pink-50">
           <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xl">#</span>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {currentConversation.name}
-            </h2>
-          </div>
-        ) : otherUser ? (
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-8 h-8 rounded-full overflow-hidden">
-                <img
-                  src={otherUser.imageUrl}
-                  alt={otherUser.username}
-                  className="w-full h-full object-cover"
+            {!currentConversation.is_channel && (
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  <img
+                    src={otherUser?.imageUrl}
+                    alt={otherUser?.username}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div
+                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white
+                    ${isUserOnline(otherUser?.id || '') ? 'bg-green-500' : 'bg-gray-300'}`}
                 />
               </div>
-              <div
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
-                  ${userStatuses[otherUser.id] ? "bg-green-500" : "bg-gray-300"}`}
-              />
+            )}
+            <div>
+              <h2 className="font-semibold text-gray-900">
+                {currentConversation.is_channel
+                  ? `#${currentConversation.name}`
+                  : otherUser?.username}
+              </h2>
+              {!currentConversation.is_channel && (
+                <p className="text-xs text-gray-500">
+                  {isUserOnline(otherUser?.id || '') ? 'Online' : 'Offline'}
+                </p>
+              )}
             </div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {otherUser.username}
-            </h2>
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
 
       <MessageList
         messages={messagesToDisplay}

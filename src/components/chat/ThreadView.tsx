@@ -106,7 +106,7 @@ const ThreadView = ({
         </div>
       </div>
 
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-pink-100 bg-white">
         <MessageInput
           currentConversationId={currentConversationId}
           conversations={conversations}
