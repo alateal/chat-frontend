@@ -84,6 +84,7 @@ const MessageList = ({
     string | null
   >(null);
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
+  const [isAiResponding, setIsAiResponding] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,6 +176,15 @@ const MessageList = ({
   const handleOpenThread = (message: Message) => {
     setThreadParentMessage(message);
     setShowThread(true);
+  };
+
+  const handleSendMessage = async (content: string) => {
+    try {
+      setIsAiResponding(true);
+      await onSendMessage(content, currentConversationId || '', [], selectedParentMessageId);
+    } finally {
+      setIsAiResponding(false);
+    }
   };
 
   return (
@@ -519,7 +529,8 @@ const MessageList = ({
           conversations={conversations}
           currentConversationId={currentConversationId}
           currentUserId={currentUserId}
-          onSendMessage={onSendMessage}
+          onSendMessage={handleSendMessage}
+          isAiResponding={isAiResponding}
         />
       </div>
     </div>

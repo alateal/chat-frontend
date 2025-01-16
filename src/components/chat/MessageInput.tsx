@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FileUpload } from './FileUpload';
 import { Conversation, FileAttachment, User } from '../../types';
 
@@ -10,13 +10,14 @@ interface MessageInputProps {
   parentMessageId?: string;
   users: User[];
   placeholder?: string;
+  isAiResponding?: boolean;
 }
 
-
-const MessageInput = ({ onSendMessage, users, conversations, currentConversationId, currentUserId, parentMessageId, placeholder }: MessageInputProps) => {
+const MessageInput = ({ onSendMessage, users, conversations, currentConversationId, currentUserId, parentMessageId, placeholder, isAiResponding }: MessageInputProps) => {
   const [message, setMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
   const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const otherUser = currentConversation && !currentConversation?.is_channel
     ? users.find(user => 
@@ -37,21 +38,44 @@ const MessageInput = ({ onSendMessage, users, conversations, currentConversation
     setAttachedFiles(prev => [...prev, fileData]);
   };
 
+  const [dots, setDots] = useState('');
+  useEffect(() => {
+    if (isAiResponding) {
+      const interval = setInterval(() => {
+        setDots(prev => prev.length >= 3 ? '' : prev + '.');
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isAiResponding]);
+
   return (
     <div className="p-4 bg-white-50">
       <div className="flex items-center gap-2">
         <FileUpload onFileUpload={handleFileUpload} />
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          placeholder={placeholder || `Message ${currentConversation?.name || otherUser?.username || ''}`}
-          className="input input-bordered flex-1"
+          placeholder={
+            isAiResponding 
+              ? `One moment please. Piggy is eating some bacons${dots}`
+              : `Message ${currentConversation?.name || otherUser?.username || ''}`
+          }
+          disabled={isAiResponding}
+          className={`flex-1 h-10 px-4 py-2 text-sm border rounded-lg resize-none
+            ${isAiResponding ? 'bg-gray-100 italic text-gray-600' : 'bg-white'}
+            focus:outline-none focus:border-blue-500`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
         />
         <button 
           onClick={handleSend}
           className="p-4 bg-pink-400 hover:bg-pink-500 text-white"
+          disabled={!message.trim() || isAiResponding}
         >
           Send
         </button>
