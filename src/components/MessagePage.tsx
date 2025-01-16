@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import Sidebar from "./sidebar/Sidebar";
 import ChatArea from "./chat/ChatArea";
@@ -13,30 +13,30 @@ const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   enabledTransports: ["ws", "wss"]
 });
 
-export const fetchWithAuth = async (url: string, options?: RequestInit) => {
-  const token = await window.Clerk.session.getToken();
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options?.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  return response.json();
-};
-
 const MessagePage = () => {
   const { getToken, userId } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number>();
+
+  const fetchWithAuth = useCallback(async (url: string, options?: RequestInit) => {
+    const token = await getToken();
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(options?.headers || {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }, [getToken]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,7 +69,7 @@ const MessagePage = () => {
     };
 
     fetchData();
-  }, [getToken]);
+  }, [getToken, fetchWithAuth]);
 
   useEffect(() => {
     const presenceChannel = pusher.subscribe("presence");
