@@ -1,5 +1,4 @@
 import MessageList from "./MessageList";
-import MessageInput from "./MessageInput";
 import { Conversation, FileAttachment, Message, User } from "../../types";
 import { useUserStatus } from "../../contexts/UserStatusContext";
 

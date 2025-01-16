@@ -36,6 +36,7 @@ export interface FileAttachment {
   file_url: string;
   file_type: string;
   file_size: number;
+  isTemp?: boolean;
 }
 
 export interface UserStatus {

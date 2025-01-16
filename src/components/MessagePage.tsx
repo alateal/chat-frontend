@@ -13,30 +13,29 @@ const pusher = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
   enabledTransports: ["ws", "wss"]
 });
 
+export const fetchWithAuth = async (url: string, options?: any) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${await Clerk.session.getToken()}`,
+      "Content-Type": "application/json",
+      ...(options?.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 const MessagePage = () => {
   const { getToken, userId } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number>();
-
-  const fetchWithAuth = useCallback(async (url: string, options?: RequestInit) => {
-    const token = await getToken();
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...(options?.headers || {}),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-  }, [getToken]);
 
   useEffect(() => {
     const fetchData = async () => {

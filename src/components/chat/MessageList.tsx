@@ -84,7 +84,6 @@ const MessageList = ({
     string | null
   >(null);
   const [threadParentMessage, setThreadParentMessage] = useState<Message | null>(null);
-  const [isAiResponding, setIsAiResponding] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,15 +177,6 @@ const MessageList = ({
     setShowThread(true);
   };
 
-  const handleSendMessage = async (content: string) => {
-    try {
-      setIsAiResponding(true);
-      await onSendMessage(content, currentConversationId || '', [], selectedParentMessageId);
-    } finally {
-      setIsAiResponding(false);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
@@ -264,7 +254,7 @@ const MessageList = ({
                       {message.content}
 
                       {/* File attachments inside chat bubble */}
-                      {message.file_attachments?.files.map((file) => (
+                      {message.file_attachments?.map((file) => (
                         <div key={file.id} className="mt-3 first:mt-4">
                           <a
                             href={file.file_url}
@@ -529,8 +519,7 @@ const MessageList = ({
           conversations={conversations}
           currentConversationId={currentConversationId}
           currentUserId={currentUserId}
-          onSendMessage={handleSendMessage}
-          isAiResponding={isAiResponding}
+          onSendMessage={onSendMessage}
         />
       </div>
     </div>
