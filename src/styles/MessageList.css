@@ -1,0 +1,11 @@
+.audio-controls {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-controls audio {
+  height: 32px;
+  border-radius: 16px;
+} 
