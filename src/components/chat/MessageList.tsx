@@ -108,88 +108,79 @@ const MessageList = ({
   const [processedAudioMessages] = useState<Set<number>>(new Set());
   const [currentAudioMessage, setCurrentAudioMessage] = useState<number | null>(null);
 
-  // Handle user interaction
-  useEffect(() => {
-    const handleInteraction = () => {
-      setHasInteracted(true);
-    };
+  // // Handle user interaction
+  // useEffect(() => {
+  //   const handleInteraction = () => {
+  //     setHasInteracted(true);
+  //   };
 
-    // Add listeners for common interaction events
-    window.addEventListener('click', handleInteraction);
-    window.addEventListener('keydown', handleInteraction);
-    window.addEventListener('touchstart', handleInteraction);
+  //   // Add listeners for common interaction events
+  //   window.addEventListener('click', handleInteraction);
+  //   window.addEventListener('keydown', handleInteraction);
+  //   window.addEventListener('touchstart', handleInteraction);
 
-    return () => {
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
-    };
-  }, []);
+  //   return () => {
+  //     window.removeEventListener('click', handleInteraction);
+  //     window.removeEventListener('keydown', handleInteraction);
+  //     window.removeEventListener('touchstart', handleInteraction);
+  //   };
+  // }, []);
 
-  // Handle new messages and audio queue
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
+  // // Handle new messages and audio queue
+  // useEffect(() => {
+  //   const lastMessage = messages[messages.length - 1];
     
-    // Only process new AI messages with audio that haven't been handled
-    if (lastMessage?.created_by === 'user_ai' && 
-        lastMessage.audio_url && 
-        !processedAudioMessages.has(lastMessage.id) &&
-        currentAudioMessage !== lastMessage.id) {
+  //   // Only process new AI messages with audio that haven't been handled
+  //   if (lastMessage?.created_by === 'user_ai' && 
+  //       lastMessage.audio_url && 
+  //       !processedAudioMessages.has(lastMessage.id) &&
+  //       currentAudioMessage !== lastMessage.id) {
       
-      // Clear any existing audio queue
-      setAudioQueue([]);
-      // Set the current message being processed
-      setCurrentAudioMessage(lastMessage.id);
-      // Add only this message to the queue
-      setAudioQueue([{ id: lastMessage.id, url: lastMessage.audio_url }]);
-      // Mark this message as processed
-      processedAudioMessages.add(lastMessage.id);
-    }
-  }, [messages]);
+  //     // Clear any existing audio queue
+  //     setAudioQueue([]);
+  //     // Set the current message being processed
+  //     setCurrentAudioMessage(lastMessage.id);
+  //     // Add only this message to the queue
+  //     setAudioQueue([{ id: lastMessage.id, url: lastMessage.audio_url }]);
+  //     // Mark this message as processed
+  //     processedAudioMessages.add(lastMessage.id);
+  //   }
+  // }, [messages]);
 
-  // Handle audio playback
-  useEffect(() => {
-    const playAudio = async () => {
-      if (audioQueue.length > 0 && !isPlaying && !audioMuted && hasInteracted) {
-        try {
-          setIsPlaying(true);
-          const { id, url } = audioQueue[0];
+  // // Handle audio playback
+  // useEffect(() => {
+  //   const playAudio = async () => {
+  //     if (audioQueue.length > 0 && !isPlaying && !audioMuted && hasInteracted) {
+  //       try {
+  //         setIsPlaying(true);
+  //         const { id, url } = audioQueue[0];
           
-          const audio = new Audio(url);
-          await audio.play();
+  //         const audio = new Audio(url);
+  //         await audio.play();
           
-          audio.onended = () => {
-            setIsPlaying(false);
-            setAudioQueue([]);  // Clear queue after playing
-            setCurrentAudioMessage(null);  // Reset current message
-          };
+  //         audio.onended = () => {
+  //           setIsPlaying(false);
+  //           setAudioQueue([]);  // Clear queue after playing
+  //           setCurrentAudioMessage(null);  // Reset current message
+  //         };
 
-          audio.onerror = () => {
-            console.error('Audio playback error');
-            setIsPlaying(false);
-            setAudioQueue([]);  // Clear queue on error
-            setCurrentAudioMessage(null);  // Reset current message
-          };
-        } catch (error) {
-          console.error('Error playing audio:', error);
-          setIsPlaying(false);
-          setAudioQueue([]);  // Clear queue on error
-          setCurrentAudioMessage(null);  // Reset current message
-        }
-      }
-    };
+  //         audio.onerror = () => {
+  //           console.error('Audio playback error');
+  //           setIsPlaying(false);
+  //           setAudioQueue([]);  // Clear queue on error
+  //           setCurrentAudioMessage(null);  // Reset current message
+  //         };
+  //       } catch (error) {
+  //         console.error('Error playing audio:', error);
+  //         setIsPlaying(false);
+  //         setAudioQueue([]);  // Clear queue on error
+  //         setCurrentAudioMessage(null);  // Reset current message
+  //       }
+  //     }
+  //   };
 
-    playAudio();
-  }, [audioQueue, isPlaying, audioMuted, hasInteracted]);
-
-  // Save audio preference
-  useEffect(() => {
-    localStorage.setItem('piggyAudioMuted', audioMuted.toString());
-  }, [audioMuted]);
-
-  const toggleAudio = useCallback(() => {
-    setAudioMuted(prev => !prev);
-  }, []);
+  //   playAudio();
+  // }, [audioQueue, isPlaying, audioMuted, hasInteracted]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -289,24 +280,6 @@ const MessageList = ({
     setThreadParentMessage(message);
     setShowThread(true);
   };
-
-  const renderAudioControl = () => (
-    <button
-      onClick={toggleAudio}
-      className="btn btn-circle btn-sm btn-ghost tooltip tooltip-left"
-      data-tip={audioMuted ? "Unmute Piggy" : "Mute Piggy"}
-    >
-      {audioMuted ? (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-        </svg>
-      )}
-    </button>
-  );
 
   const renderMessage = (message: Message) => {
     const isAI = message.created_by === 'user_ai';
@@ -585,7 +558,6 @@ const MessageList = ({
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex justify-between items-center px-4 py-2 border-b border-base-200">
         <h2 className="text-lg font-semibold">Messages</h2>
-        {renderAudioControl()}
       </div>
 
       <div

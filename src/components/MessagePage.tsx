@@ -51,7 +51,7 @@ const MessagePage = () => {
         ]);
 
         setConversations(conversationsData.conversations);
-        setUsers(usersData.users.data.concat({ id: "user_ai", username: "AI", imageUrl: "/piggie.svg" }));
+        setUsers(usersData.users.data.concat({ id: "user_ai", username: "AI Piggy", imageUrl: "/piggie.svg" }));
 
         if (conversationsData.conversations?.length > 0) {
           const params = new URLSearchParams(window.location.search);
@@ -88,6 +88,20 @@ const MessagePage = () => {
     );
 
     conversationChannel.bind("new-message", (newMessage: Message) => {
+
+      // Check if message is from AI and in current conversation with AI
+      if (newMessage.created_by === 'user_ai' && currentConversationId) {
+        const currentConversation = conversations.find(conv => conv.id === currentConversationId);
+        if (currentConversation?.conversation_members?.includes('user_ai')) {
+          // Create and play audio
+          const audio = new Audio();
+          audio.src = newMessage.audio_url || '';
+          audio.play().catch(error => {
+            console.error('Error playing audio:', error);
+          });
+        }
+      }
+
       setMessages((prevMessages) => {
         console.log('New message received:', newMessage);
         // Check if message already exists

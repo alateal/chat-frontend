@@ -40,7 +40,7 @@ const ChatArea = ({
     : null;
 
   const isUserOnline = (userId: string) => {
-    if (userId === "user_ai") return true; // AI is always online
+    if (userId === "user_ai") return true; // AI Piggy is always online
     return userStatuses[userId] || false;
   };
 
@@ -68,7 +68,9 @@ const ChatArea = ({
               <h2 className="font-semibold text-gray-900">
                 {currentConversation.is_channel
                   ? `#${currentConversation.name}`
-                  : otherUser?.username}
+                  : otherUser?.id === 'user_ai' 
+                    ? 'AI Piggy'
+                    : otherUser?.username}
               </h2>
               {!currentConversation.is_channel && (
                 <p className="text-xs text-gray-500">
