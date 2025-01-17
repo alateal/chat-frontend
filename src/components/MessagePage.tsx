@@ -36,6 +36,7 @@ const MessagePage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number>();
+  const [isPiggyTyping, setIsPiggyTyping] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,6 +89,10 @@ const MessagePage = () => {
     );
 
     conversationChannel.bind("new-message", (newMessage: Message) => {
+      // If message is from Piggy, stop the typing indicator
+      if (newMessage.created_by === 'user_ai') {
+        setIsPiggyTyping(false);
+      }
 
       // Check if message is from AI and in current conversation with AI
       if (newMessage.created_by === 'user_ai' && currentConversationId) {
@@ -186,6 +191,14 @@ const MessagePage = () => {
     parentMessageId?: string
   ) => {
     try {
+      // Check if message is being sent to a conversation with Piggy
+      const conversation = conversations.find(conv => conv.id === Number(conversationId));
+      const isMessageToPiggy = conversation?.conversation_members?.includes('user_ai');
+
+      if (isMessageToPiggy) {
+        setIsPiggyTyping(true);
+      }
+
       const body = {
         content,
         conversation_id: conversationId,
@@ -240,6 +253,7 @@ const MessagePage = () => {
           currentUserId={userId}
           onSendMessage={handleSendMessage}
           onAddReaction={handleAddReaction}
+          isPiggyTyping={isPiggyTyping}
         />
       </div>
     </div>

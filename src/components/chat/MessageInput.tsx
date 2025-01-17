@@ -51,7 +51,7 @@ const MessageInput = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-
+    
     const files = Array.from(e.dataTransfer.files);
     files.forEach((file) => {
       // Create a temporary preview URL for images

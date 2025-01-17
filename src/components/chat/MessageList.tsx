@@ -27,6 +27,7 @@ interface MessageListProps {
   userStatuses: UserStatus;
   onSendMessage: (content: string, conversationId: string, files?: FileAttachment[], parentMessageId?: string) => void;
   conversations: Conversation[];
+  isPiggyTyping?: boolean;
 }
 
 const FREQUENT_EMOJIS = ["👍🏻", "🙏🏼", "😄", "🎉"]; // Default frequent emojis
@@ -84,6 +85,7 @@ const MessageList = ({
   userStatuses,
   onSendMessage,
   conversations,
+  isPiggyTyping,
 }: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,80 +109,6 @@ const MessageList = ({
   const [hasInteracted, setHasInteracted] = useState(false);
   const [processedAudioMessages] = useState<Set<number>>(new Set());
   const [currentAudioMessage, setCurrentAudioMessage] = useState<number | null>(null);
-
-  // // Handle user interaction
-  // useEffect(() => {
-  //   const handleInteraction = () => {
-  //     setHasInteracted(true);
-  //   };
-
-  //   // Add listeners for common interaction events
-  //   window.addEventListener('click', handleInteraction);
-  //   window.addEventListener('keydown', handleInteraction);
-  //   window.addEventListener('touchstart', handleInteraction);
-
-  //   return () => {
-  //     window.removeEventListener('click', handleInteraction);
-  //     window.removeEventListener('keydown', handleInteraction);
-  //     window.removeEventListener('touchstart', handleInteraction);
-  //   };
-  // }, []);
-
-  // // Handle new messages and audio queue
-  // useEffect(() => {
-  //   const lastMessage = messages[messages.length - 1];
-    
-  //   // Only process new AI messages with audio that haven't been handled
-  //   if (lastMessage?.created_by === 'user_ai' && 
-  //       lastMessage.audio_url && 
-  //       !processedAudioMessages.has(lastMessage.id) &&
-  //       currentAudioMessage !== lastMessage.id) {
-      
-  //     // Clear any existing audio queue
-  //     setAudioQueue([]);
-  //     // Set the current message being processed
-  //     setCurrentAudioMessage(lastMessage.id);
-  //     // Add only this message to the queue
-  //     setAudioQueue([{ id: lastMessage.id, url: lastMessage.audio_url }]);
-  //     // Mark this message as processed
-  //     processedAudioMessages.add(lastMessage.id);
-  //   }
-  // }, [messages]);
-
-  // // Handle audio playback
-  // useEffect(() => {
-  //   const playAudio = async () => {
-  //     if (audioQueue.length > 0 && !isPlaying && !audioMuted && hasInteracted) {
-  //       try {
-  //         setIsPlaying(true);
-  //         const { id, url } = audioQueue[0];
-          
-  //         const audio = new Audio(url);
-  //         await audio.play();
-          
-  //         audio.onended = () => {
-  //           setIsPlaying(false);
-  //           setAudioQueue([]);  // Clear queue after playing
-  //           setCurrentAudioMessage(null);  // Reset current message
-  //         };
-
-  //         audio.onerror = () => {
-  //           console.error('Audio playback error');
-  //           setIsPlaying(false);
-  //           setAudioQueue([]);  // Clear queue on error
-  //           setCurrentAudioMessage(null);  // Reset current message
-  //         };
-  //       } catch (error) {
-  //         console.error('Error playing audio:', error);
-  //         setIsPlaying(false);
-  //         setAudioQueue([]);  // Clear queue on error
-  //         setCurrentAudioMessage(null);  // Reset current message
-  //       }
-  //     }
-  //   };
-
-  //   playAudio();
-  // }, [audioQueue, isPlaying, audioMuted, hasInteracted]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -582,6 +510,23 @@ const MessageList = ({
             ))}
           </div>
         ))}
+        {isPiggyTyping && (
+          <div className="chat chat-start">
+            <div className="flex items-start gap-3">
+              <div className="chat-image avatar">
+                <div className="w-10 h-10 rounded-lg overflow-hidden">
+                  <img src="/piggie.svg" alt="AI Piggy" className="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div className="bg-pink-50 text-gray-800 rounded-lg px-4 py-2 border border-pink-100">
+                <div className="flex items-center gap-2">
+                  <span>One moment please. Piggy is eating some bacons</span>
+                  <span className="loading loading-dots loading-sm text-pink-500"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
 
         {/* Emoji Picker Modal */}

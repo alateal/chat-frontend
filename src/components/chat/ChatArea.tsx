@@ -15,6 +15,7 @@ interface ChatAreaProps {
     parentMessageId?: string
   ) => void;
   onAddReaction: (messageId: string, emoji: string) => void;
+  isPiggyTyping?: boolean;
 }
 
 const ChatArea = ({
@@ -25,6 +26,7 @@ const ChatArea = ({
   currentUserId,
   onSendMessage,
   onAddReaction,
+  isPiggyTyping,
 }: ChatAreaProps) => {
   const { userStatuses } = useUserStatus();
 
@@ -91,6 +93,7 @@ const ChatArea = ({
         userStatuses={userStatuses}
         onSendMessage={onSendMessage}
         conversations={conversations}
+        isPiggyTyping={isPiggyTyping}
       />
     </div>
   );
