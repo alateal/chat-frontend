@@ -162,6 +162,28 @@ const MessageInput = ({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Log the files being sent
+    console.log("Sending files:", attachedFiles);
+
+    // Make sure files are properly formatted
+    const formattedFiles = attachedFiles.map(file => ({
+      name: file.file_name,
+      type: file.file_type,
+      url: file.file_url,
+      size: file.file_size
+    }));
+
+    // Send message with files
+    await onSendMessage(message, currentConversationId, formattedFiles, parentMessageId);
+    
+    // Clear files after sending
+    setAttachedFiles([]);
+    setMessage('');
+  };
+
   return (
     <div
       ref={dropZoneRef}
