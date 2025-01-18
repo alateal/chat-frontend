@@ -47,32 +47,7 @@ const MessageInput = ({
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    files.forEach((file) => {
-      // Create a temporary preview URL for images
-      if (file.type.startsWith("image/")) {
-        const previewUrl = URL.createObjectURL(file);
-        const tempAttachment: FileAttachment = {
-          id: `temp-${Date.now()}-${file.name}`,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          file_url: previewUrl,
-          isTemp: true,
-        };
-        setAttachedFiles((prev) => [...prev, tempAttachment]);
-      }
-      // Trigger the actual file upload
-      uploadFile(file);
-    });
-  }, []);
-
-  const uploadFile = async (file: File) => {
+  const processFile = async (file: File) => {
     try {
       // Get presigned URL from backend
       const response = await fetchWithAuth(`${API_URL}/api/files/upload`, {
@@ -111,7 +86,20 @@ const MessageInput = ({
         file_url: fileUrl,
       };
 
-      handleFileUpload(fileAttachment);
+      // Add to attached files
+      setAttachedFiles((prev) => {
+        // Replace temporary preview if it exists
+        const tempIndex = prev.findIndex(
+          (f) => f.file_name === file.name && f.isTemp
+        );
+        if (tempIndex >= 0) {
+          const newFiles = [...prev];
+          newFiles[tempIndex] = fileAttachment;
+          return newFiles;
+        }
+        // Otherwise add as new file
+        return [...prev, fileAttachment];
+      });
     } catch (error) {
       console.error("Error uploading file:", error);
       // Remove temporary preview on error
@@ -119,20 +107,47 @@ const MessageInput = ({
     }
   };
 
-  const handleFileUpload = (fileData: FileAttachment) => {
-    setAttachedFiles((prev) => {
-      // Replace temporary preview if it exists
-      const tempIndex = prev.findIndex(
-        (f) => f.file_name === fileData.file_name && f.isTemp
-      );
-      if (tempIndex >= 0) {
-        const newFiles = [...prev];
-        newFiles[tempIndex] = fileData;
-        return newFiles;
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach((file) => {
+      // Create a temporary preview URL for images
+      if (file.type.startsWith("image/")) {
+        const previewUrl = URL.createObjectURL(file);
+        const tempAttachment: FileAttachment = {
+          id: `temp-${Date.now()}-${file.name}`,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          file_url: previewUrl,
+          isTemp: true,
+        };
+        setAttachedFiles((prev) => [...prev, tempAttachment]);
       }
-      // Otherwise add as new file
-      return [...prev, fileData];
+      // Process the file
+      processFile(file);
     });
+  }, []);
+
+  const handleFileUpload = (file: File) => {
+    // Create a temporary preview URL for images
+    if (file.type.startsWith("image/")) {
+      const previewUrl = URL.createObjectURL(file);
+      const tempAttachment: FileAttachment = {
+        id: `temp-${Date.now()}-${file.name}`,
+        file_name: file.name,
+        file_type: file.type,
+        file_size: file.size,
+        file_url: previewUrl,
+        isTemp: true,
+      };
+      setAttachedFiles((prev) => [...prev, tempAttachment]);
+    }
+    // Process the file
+    processFile(file);
   };
 
   const currentConversation = conversations.find(

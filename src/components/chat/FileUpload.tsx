@@ -1,7 +1,6 @@
 interface FileUploadProps {
-  onFileUpload: (fileData: File) => void;
+  onFileUpload: (file: File) => void;
 }
-
 
 export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   return (
